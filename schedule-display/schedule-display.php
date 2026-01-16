@@ -1289,25 +1289,17 @@ class Schedule_Display {
                     <div class="schedule-list"<?php echo ($hide_month_heading && !$first_month) ? ' style="margin-top: 12px;"' : ''; ?>>
                         <?php foreach ($month_events as $event) : ?>
                             <?php
-                            // 背景色を取得（ICSから取得したCOLOR）
-                            $event_color = isset($event['color']) && !empty($event['color']) ? $event['color'] : '';
+                            // 背景色を取得（displayBackgroundColorプロパティから）
+                            $display_bg_color = isset($event['displayBackgroundColor']) ? $event['displayBackgroundColor'] : '';
                             $title_style = '';
-                            if (!empty($event_color)) {
-                                $title_style = 'background-color: ' . esc_attr($event_color) . ';';
-                                // 背景色が暗い場合は文字色を白に
-                                $hex = str_replace('#', '', $event_color);
-                                $r = hexdec(substr($hex, 0, 2));
-                                $g = hexdec(substr($hex, 2, 2));
-                                $b = hexdec(substr($hex, 4, 2));
-                                $brightness = ($r * 299 + $g * 587 + $b * 114) / 1000;
-                                if ($brightness < 128) {
-                                    $title_style .= ' color: #ffffff;';
-                                } else {
-                                    $title_style .= ' color: #333333;';
-                                }
-                                // パディングとボーダーラディウスを追加
-                                $title_style .= ' padding: 2px 6px; border-radius: 3px; display: inline-block;';
+                            // 前景色は常に白に固定
+                            $title_style = 'color: #ffffff;';
+                            // 背景色を設定（空の場合はCSSのデフォルト色を使用）
+                            if (!empty($display_bg_color)) {
+                                $title_style .= ' background-color: ' . esc_attr($display_bg_color) . ';';
                             }
+                            // パディングとボーダーラディウスを追加
+                            $title_style .= ' padding: 2px 6px; border-radius: 3px; display: inline-block;';
                             ?>
                             <div class="schedule-item" 
                                  data-event-index="<?php echo esc_attr($event_index); ?>"
@@ -1597,20 +1589,14 @@ class Schedule_Display {
                                             $tooltip_text = $start_time . '~ ' . $event_title;
                                         }
                                         
-                                        // 背景色を取得（ICSから取得したCOLOR）
-                                        $event_color = isset($event['color']) && !empty($event['color']) ? $event['color'] : '';
+                                        // 背景色を取得（displayBackgroundColorプロパティから）
+                                        $display_bg_color = isset($event['displayBackgroundColor']) ? $event['displayBackgroundColor'] : '';
                                         $style_attr = 'cursor: pointer;';
-                                        if (!empty($event_color)) {
-                                            $style_attr .= ' background-color: ' . esc_attr($event_color) . ';';
-                                            // 背景色が暗い場合は文字色を白に
-                                            $hex = str_replace('#', '', $event_color);
-                                            $r = hexdec(substr($hex, 0, 2));
-                                            $g = hexdec(substr($hex, 2, 2));
-                                            $b = hexdec(substr($hex, 4, 2));
-                                            $brightness = ($r * 299 + $g * 587 + $b * 114) / 1000;
-                                            if ($brightness < 128) {
-                                                $style_attr .= ' color: #ffffff;';
-                                            }
+                                        // 前景色は常に白に固定
+                                        $style_attr .= ' color: #ffffff;';
+                                        // 背景色を設定（空の場合はCSSのデフォルト色を使用）
+                                        if (!empty($display_bg_color)) {
+                                            $style_attr .= ' background-color: ' . esc_attr($display_bg_color) . ';';
                                         }
                                         ?>
                                         <div class="schedule-calendar-event" 
@@ -2227,37 +2213,44 @@ class Schedule_ICS_Parser {
         $location = urldecode($location);
         
         // 背景色（COLOR）を取得（Googleカレンダーの背景色）
-        // まずイベント固有のCOLORを確認
-        $color = isset($event_data['COLOR']) ? trim($event_data['COLOR']) : '';
-        // COLORが空の場合は、X-APPLE-CALENDAR-COLORも確認（一部のカレンダーで使用）
-        if (empty($color) && isset($event_data['X-APPLE-CALENDAR-COLOR'])) {
-            $color = trim($event_data['X-APPLE-CALENDAR-COLOR']);
+        // 優先順位：1. イベント固有のCOLOR → 2. カレンダーの色 → 3. デフォルト色（緑）
+        $display_background_color = '';
+        
+        // 1. イベント固有のCOLORを確認
+        $event_color = isset($event_data['COLOR']) ? trim($event_data['COLOR']) : '';
+        if (empty($event_color) && isset($event_data['X-APPLE-CALENDAR-COLOR'])) {
+            $event_color = trim($event_data['X-APPLE-CALENDAR-COLOR']);
         }
-        // COLORが空の場合は、X-COLORも確認
-        if (empty($color) && isset($event_data['X-COLOR'])) {
-            $color = trim($event_data['X-COLOR']);
+        if (empty($event_color) && isset($event_data['X-COLOR'])) {
+            $event_color = trim($event_data['X-COLOR']);
         }
         
-        // イベント固有の色が初期値または空の場合は、カレンダーレベルの色を使用
-        if (empty($color) && !empty($calendar_color)) {
-            $color = $calendar_color;
+        // 2. イベント固有の色がない場合は、カレンダーレベルの色を使用
+        if (empty($event_color) && !empty($calendar_color)) {
+            $display_background_color = $calendar_color;
+        } elseif (!empty($event_color)) {
+            $display_background_color = $event_color;
         }
         
         // 色コードを正規化（#が付いていない場合は追加、RGB形式の場合は変換）
-        if (!empty($color)) {
+        if (!empty($display_background_color)) {
             // #が付いていない場合は追加
-            if (strpos($color, '#') !== 0) {
-                $color = '#' . $color;
+            if (strpos($display_background_color, '#') !== 0) {
+                $display_background_color = '#' . $display_background_color;
             }
             // 3桁のHEXカラーを6桁に変換（例: #f00 -> #ff0000）
-            if (strlen($color) === 4) {
-                $color = '#' . $color[1] . $color[1] . $color[2] . $color[2] . $color[3] . $color[3];
+            if (strlen($display_background_color) === 4) {
+                $display_background_color = '#' . $display_background_color[1] . $display_background_color[1] . $display_background_color[2] . $display_background_color[2] . $display_background_color[3] . $display_background_color[3];
             }
             // 有効なHEXカラーかチェック
-            if (!preg_match('/^#[0-9A-Fa-f]{6}$/', $color)) {
-                $color = ''; // 無効な場合は空にする
+            if (!preg_match('/^#[0-9A-Fa-f]{6}$/', $display_background_color)) {
+                $display_background_color = ''; // 無効な場合は空にする（デフォルト色を使用）
             }
         }
+        
+        // デフォルト色（緑 #4caf50）を使用する場合は空文字列のままにする（CSSのデフォルトを使用）
+        // カレンダーの色がある場合も、正規化チェックを通過したもののみを使用
+        // 空の場合はCSSのデフォルト色（#4caf50）を使用
         
         return array(
             'date' => $dtstart->format('Y-m-d'),
@@ -2267,7 +2260,7 @@ class Schedule_ICS_Parser {
             'title' => $title,
             'description' => $description,
             'location' => $location,
-            'color' => $color, // 背景色を追加
+            'displayBackgroundColor' => $display_background_color, // 背景色（前景色は常に白）
             'datetime' => $dtstart
         );
     }
