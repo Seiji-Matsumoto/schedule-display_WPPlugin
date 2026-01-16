@@ -345,6 +345,9 @@ class Schedule_Display {
     
     public function register_settings() {
         register_setting('schedule_display_settings', 'schedule_ics_url');
+        register_setting('schedule_display_settings', 'schedule_ics_url_1');
+        register_setting('schedule_display_settings', 'schedule_ics_url_2');
+        register_setting('schedule_display_settings', 'schedule_ics_url_3');
         register_setting('schedule_display_settings', 'schedule_days_ahead', array(
             'default' => 60,
             'sanitize_callback' => 'absint'
@@ -614,8 +617,51 @@ class Schedule_Display {
                                 Googleカレンダーの「設定と共有」→「カレンダーの統合」から取得したICS形式のURLを入力してください。<br>
                                 <strong>重要：</strong>手入力の予定のみを表示したい場合は、手入力用のカレンダー（例：matsu@object-lab.co.jp）のICS URLを指定してください。<br>
                                 複数のカレンダーを統合したURLを使うと、日本の祝日なども表示されます。<br>
-                                <strong>注意：</strong>タイトル（SUMMARY）がある予定のみが表示されます。
+                                <strong>注意：</strong>タイトル（SUMMARY）がある予定のみが表示されます。<br>
+                                <strong>複数カレンダー対応：</strong>下記のICS URL 1-3も使用可能です。リンク未入力の場合は無視されます。
                             </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <label for="schedule_ics_url_1">ICS URL 1</label>
+                        </th>
+                        <td>
+                            <input type="url" 
+                                   id="schedule_ics_url_1" 
+                                   name="schedule_ics_url_1" 
+                                   value="<?php echo esc_attr(get_option('schedule_ics_url_1', '')); ?>" 
+                                   class="regular-text"
+                                   placeholder="https://calendar.google.com/calendar/ical/.../basic.ics" />
+                            <p class="description">複数のカレンダーを統合表示する場合に使用します。リンク未入力の場合は無視されます。</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <label for="schedule_ics_url_2">ICS URL 2</label>
+                        </th>
+                        <td>
+                            <input type="url" 
+                                   id="schedule_ics_url_2" 
+                                   name="schedule_ics_url_2" 
+                                   value="<?php echo esc_attr(get_option('schedule_ics_url_2', '')); ?>" 
+                                   class="regular-text"
+                                   placeholder="https://calendar.google.com/calendar/ical/.../basic.ics" />
+                            <p class="description">複数のカレンダーを統合表示する場合に使用します。リンク未入力の場合は無視されます。</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <label for="schedule_ics_url_3">ICS URL 3</label>
+                        </th>
+                        <td>
+                            <input type="url" 
+                                   id="schedule_ics_url_3" 
+                                   name="schedule_ics_url_3" 
+                                   value="<?php echo esc_attr(get_option('schedule_ics_url_3', '')); ?>" 
+                                   class="regular-text"
+                                   placeholder="https://calendar.google.com/calendar/ical/.../basic.ics" />
+                            <p class="description">複数のカレンダーを統合表示する場合に使用します。リンク未入力の場合は無視されます。</p>
                         </td>
                     </tr>
                     <tr>
@@ -1055,9 +1101,32 @@ class Schedule_Display {
             'calendar_start_day' => $calendar_start_day
         ), $atts);
         
-        $ics_url = !empty($atts['ics_url']) ? $atts['ics_url'] : get_option('schedule_ics_url', '');
+        // 複数のICS URLを取得（リンク未入力は無視）
+        $ics_urls = array();
         
-        if (empty($ics_url)) {
+        // ショートコードで指定されたURL
+        if (!empty($atts['ics_url'])) {
+            $ics_urls[] = $atts['ics_url'];
+        }
+        
+        // 設定画面のURL（既存のschedule_ics_url）
+        $main_ics_url = get_option('schedule_ics_url', '');
+        if (!empty($main_ics_url)) {
+            $ics_urls[] = $main_ics_url;
+        }
+        
+        // 追加のICS URL（schedule_ics_url_1, 2, 3）
+        for ($i = 1; $i <= 3; $i++) {
+            $url = get_option("schedule_ics_url_{$i}", '');
+            if (!empty($url)) {
+                $ics_urls[] = $url;
+            }
+        }
+        
+        // 重複を除去
+        $ics_urls = array_unique($ics_urls);
+        
+        if (empty($ics_urls)) {
             return '<div class="schedule-error">ICS URLが設定されていません。管理画面で設定してください。</div>';
         }
         
@@ -1067,7 +1136,46 @@ class Schedule_Display {
         // デバッグモードのチェック
         $debug_mode = get_option('schedule_debug_mode', 0);
         
-        $events = $this->ics_parser->get_events($ics_url, $days, $exclude_patterns, $debug_mode);
+        // 複数のICSからイベントを取得して統合
+        $all_events = array();
+        $debug_info = '';
+        
+        foreach ($ics_urls as $ics_url) {
+            $events = $this->ics_parser->get_events($ics_url, $days, $exclude_patterns, $debug_mode);
+            
+            if (is_wp_error($events)) {
+                if ($debug_mode) {
+                    $debug_info .= '<div class="schedule-debug">ICS URL: ' . esc_html($ics_url) . ' - エラー: ' . esc_html($events->get_error_message()) . '</div>';
+                }
+                continue; // エラーが発生したICSはスキップ
+            }
+            
+            // デバッグ情報を取得（最初のICSのみ）
+            if ($debug_mode && isset($events['_debug']) && empty($debug_info)) {
+                $debug_info = $events['_debug'];
+                unset($events['_debug']);
+            } elseif ($debug_mode && isset($events['_debug'])) {
+                unset($events['_debug']);
+            }
+            
+            // イベントを統合
+            if (!empty($events)) {
+                $all_events = array_merge($all_events, $events);
+            }
+        }
+        
+        // 日付順でソート
+        usort($all_events, function($a, $b) {
+            $date_a = isset($a['datetime']) && $a['datetime'] instanceof DateTime 
+                ? $a['datetime']->getTimestamp() 
+                : strtotime($a['date']);
+            $date_b = isset($b['datetime']) && $b['datetime'] instanceof DateTime 
+                ? $b['datetime']->getTimestamp() 
+                : strtotime($b['date']);
+            return $date_a - $date_b;
+        });
+        
+        $events = $all_events;
         
         if (is_wp_error($events)) {
             $error_msg = '<div class="schedule-error">スケジュールの取得に失敗しました: ' . esc_html($events->get_error_message()) . '</div>';
@@ -1176,6 +1284,23 @@ class Schedule_Display {
                     <?php endif; ?>
                     <div class="schedule-list"<?php echo ($hide_month_heading && !$first_month) ? ' style="margin-top: 12px;"' : ''; ?>>
                         <?php foreach ($month_events as $event) : ?>
+                            <?php
+                            // 背景色を取得（ICSから取得したCOLOR）
+                            $event_color = isset($event['color']) && !empty($event['color']) ? $event['color'] : '';
+                            $item_style = 'cursor: pointer;';
+                            if (!empty($event_color)) {
+                                $item_style .= ' background-color: ' . esc_attr($event_color) . ';';
+                                // 背景色が暗い場合は文字色を白に
+                                $hex = str_replace('#', '', $event_color);
+                                $r = hexdec(substr($hex, 0, 2));
+                                $g = hexdec(substr($hex, 2, 2));
+                                $b = hexdec(substr($hex, 4, 2));
+                                $brightness = ($r * 299 + $g * 587 + $b * 114) / 1000;
+                                if ($brightness < 128) {
+                                    $item_style .= ' color: #ffffff;';
+                                }
+                            }
+                            ?>
                             <div class="schedule-item" 
                                  data-event-index="<?php echo esc_attr($event_index); ?>"
                                  data-event-date="<?php echo esc_attr($event['date_display']); ?>"
@@ -1184,7 +1309,7 @@ class Schedule_Display {
                                  data-event-title="<?php echo esc_attr($event['title']); ?>"
                                  data-event-location="<?php echo esc_attr($event['location'] ?? ''); ?>"
                                  data-event-description="<?php echo esc_attr($event['description'] ?? ''); ?>"
-                                 style="cursor: pointer;">
+                                 style="<?php echo $item_style; ?>">
                                 <div class="schedule-date">
                                     <span class="date"><?php echo esc_html($event['date_display']); ?></span>
                                     <span class="weekday"><?php echo esc_html($event['weekday']); ?></span>
@@ -1463,6 +1588,22 @@ class Schedule_Display {
                                             $start_time = $time_parts[0];
                                             $tooltip_text = $start_time . '~ ' . $event_title;
                                         }
+                                        
+                                        // 背景色を取得（ICSから取得したCOLOR）
+                                        $event_color = isset($event['color']) && !empty($event['color']) ? $event['color'] : '';
+                                        $style_attr = 'cursor: pointer;';
+                                        if (!empty($event_color)) {
+                                            $style_attr .= ' background-color: ' . esc_attr($event_color) . ';';
+                                            // 背景色が暗い場合は文字色を白に
+                                            $hex = str_replace('#', '', $event_color);
+                                            $r = hexdec(substr($hex, 0, 2));
+                                            $g = hexdec(substr($hex, 2, 2));
+                                            $b = hexdec(substr($hex, 4, 2));
+                                            $brightness = ($r * 299 + $g * 587 + $b * 114) / 1000;
+                                            if ($brightness < 128) {
+                                                $style_attr .= ' color: #ffffff;';
+                                            }
+                                        }
                                         ?>
                                         <div class="schedule-calendar-event" 
                                              data-event-index="<?php echo esc_attr($event_display_count - 1); ?>"
@@ -1472,7 +1613,7 @@ class Schedule_Display {
                                              data-event-title="<?php echo esc_attr($event_title); ?>"
                                              data-event-location="<?php echo esc_attr(isset($event['location']) ? $event['location'] : ''); ?>"
                                              data-event-description="<?php echo esc_attr(isset($event['description']) ? $event['description'] : ''); ?>"
-                                             style="cursor: pointer;"
+                                             style="<?php echo $style_attr; ?>"
                                              title="<?php echo esc_attr($tooltip_text); ?>">
                                             <?php echo esc_html(mb_substr($event_title, 0, 10)); ?><?php echo mb_strlen($event_title) > 10 ? '...' : ''; ?>
                                         </div>
@@ -2036,6 +2177,33 @@ class Schedule_ICS_Parser {
         $location = stripcslashes($location);
         $location = urldecode($location);
         
+        // 背景色（COLOR）を取得（Googleカレンダーの背景色）
+        $color = isset($event_data['COLOR']) ? trim($event_data['COLOR']) : '';
+        // COLORが空の場合は、X-APPLE-CALENDAR-COLORも確認（一部のカレンダーで使用）
+        if (empty($color) && isset($event_data['X-APPLE-CALENDAR-COLOR'])) {
+            $color = trim($event_data['X-APPLE-CALENDAR-COLOR']);
+        }
+        // COLORが空の場合は、X-COLORも確認
+        if (empty($color) && isset($event_data['X-COLOR'])) {
+            $color = trim($event_data['X-COLOR']);
+        }
+        
+        // 色コードを正規化（#が付いていない場合は追加、RGB形式の場合は変換）
+        if (!empty($color)) {
+            // #が付いていない場合は追加
+            if (strpos($color, '#') !== 0) {
+                $color = '#' . $color;
+            }
+            // 3桁のHEXカラーを6桁に変換（例: #f00 -> #ff0000）
+            if (strlen($color) === 4) {
+                $color = '#' . $color[1] . $color[1] . $color[2] . $color[2] . $color[3] . $color[3];
+            }
+            // 有効なHEXカラーかチェック
+            if (!preg_match('/^#[0-9A-Fa-f]{6}$/', $color)) {
+                $color = ''; // 無効な場合は空にする
+            }
+        }
+        
         return array(
             'date' => $dtstart->format('Y-m-d'),
             'date_display' => $date_display,
@@ -2044,6 +2212,7 @@ class Schedule_ICS_Parser {
             'title' => $title,
             'description' => $description,
             'location' => $location,
+            'color' => $color, // 背景色を追加
             'datetime' => $dtstart
         );
     }
