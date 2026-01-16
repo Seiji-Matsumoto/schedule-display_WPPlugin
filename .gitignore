@@ -1,0 +1,36 @@
+# WordPress
+wp-config.php
+.htaccess
+
+# Docker
+*.log
+docker-compose.override.yml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Cache
+.cache/
+*.cache
+
+# Temporary files
+*.tmp
+*.bak
+*~
+
+# Node modules (if any)
+node_modules/
+
+# WordPress uploads (if mounted)
+wp-content/uploads/
+
+# Database dumps
+*.sql
+*.sql.gz

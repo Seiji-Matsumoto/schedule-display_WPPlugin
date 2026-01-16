@@ -1,0 +1,724 @@
+/* Schedule Display - スケジュール表示スタイル */
+
+.schedule-container {
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.schedule-heading {
+    font-size: 24px;
+    font-weight: 600;
+    color: #333;
+    margin: 0 0 24px 0;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.schedule-month-group {
+    margin-bottom: 32px;
+}
+
+.schedule-month-group:last-child {
+    margin-bottom: 0;
+}
+
+.schedule-month-heading {
+    font-size: 20px;
+    font-weight: 600;
+    color: #333;
+    margin: 0 0 16px 0;
+    padding: 8px 0;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.schedule-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.schedule-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 16px;
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transition: box-shadow 0.2s ease;
+    cursor: pointer; /* クリック可能であることを示す */
+    pointer-events: auto; /* クリックイベントを有効化 */
+}
+
+.schedule-item:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    background: #f9f9f9;
+}
+
+.schedule-item:active {
+    transform: scale(0.99);
+}
+
+.schedule-date {
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 100px;
+    width: 100px;
+    flex-shrink: 0;
+}
+
+.schedule-date .date {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+    line-height: 1.4;
+    text-align: right;
+    display: inline-block;
+    min-width: 36px;
+}
+
+.schedule-date .weekday {
+    font-size: 14px;
+    font-weight: 600;
+    color: #666;
+}
+
+.schedule-time {
+    min-width: 120px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #333;
+    padding-top: 2px;
+    flex-shrink: 0;
+}
+
+.schedule-title {
+    flex: 1;
+    font-size: 18px;
+    color: #333;
+    font-weight: 600;
+    padding-top: 2px;
+}
+
+/* エラー・空メッセージ */
+.schedule-error,
+.schedule-empty {
+    padding: 20px;
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    text-align: center;
+    color: #666;
+}
+
+.schedule-error {
+    background: #fff3cd;
+    border-color: #ffc107;
+    color: #856404;
+}
+
+/* デバッグ情報表示 */
+.schedule-debug {
+    margin-top: 30px;
+    padding: 20px;
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-family: monospace;
+    font-size: 12px;
+}
+
+.schedule-debug h3 {
+    margin-top: 0;
+    color: #333;
+    font-size: 16px;
+}
+
+.schedule-debug h4 {
+    margin-top: 16px;
+    margin-bottom: 8px;
+    color: #555;
+    font-size: 14px;
+}
+
+.schedule-debug ul {
+    margin: 8px 0;
+    padding-left: 20px;
+}
+
+.schedule-debug pre {
+    background: #fff;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    overflow-x: auto;
+    max-height: 600px;
+    overflow-y: auto;
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+/* ポップアップモーダル（排他モード） */
+.schedule-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 99999; /* 高いz-indexで確実に最前面に表示 */
+    display: none; /* デフォルトは非表示 */
+    align-items: center;
+    justify-content: center;
+}
+
+.schedule-modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(2px);
+}
+
+.schedule-modal-content {
+    position: relative;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    z-index: 10000;
+    animation: schedule-modal-fade-in 0.3s ease;
+}
+
+@keyframes schedule-modal-fade-in {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.schedule-modal-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    font-size: 28px;
+    line-height: 1;
+    color: #666;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+    z-index: 1;
+}
+
+.schedule-modal-close:hover {
+    background: #f0f0f0;
+    color: #333;
+}
+
+.schedule-modal-close:active {
+    transform: scale(0.9);
+}
+
+.schedule-modal-header {
+    padding: 24px 24px 16px 24px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.schedule-modal-title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: #333;
+    padding-right: 40px;
+    word-break: break-word;
+}
+
+.schedule-modal-body {
+    padding: 20px 24px 24px 24px;
+}
+
+.schedule-modal-info {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.schedule-modal-info-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.schedule-modal-label {
+    font-weight: 600;
+    color: #666;
+    min-width: 60px;
+    flex-shrink: 0;
+}
+
+.schedule-modal-value {
+    color: #333;
+    flex: 1;
+    word-break: break-word;
+}
+
+.schedule-modal-description {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #e0e0e0;
+}
+
+.schedule-modal-description-text {
+    color: #333;
+    line-height: 1.6;
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 480px) {
+    .schedule-modal-content {
+        width: 95%;
+        max-height: 90vh;
+        border-radius: 8px;
+    }
+    
+    .schedule-modal-header {
+        padding: 20px 20px 12px 20px;
+    }
+    
+    .schedule-modal-title {
+        font-size: 18px;
+    }
+    
+    .schedule-modal-body {
+        padding: 16px 20px 20px 20px;
+    }
+    
+    .schedule-modal-info-row {
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .schedule-modal-label {
+        min-width: auto;
+    }
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+    .schedule-container {
+        padding: 12px;
+    }
+    
+    .schedule-heading {
+        font-size: 20px;
+        margin-bottom: 16px;
+        padding-bottom: 8px;
+    }
+    
+    .schedule-month-group {
+        margin-bottom: 24px;
+    }
+    
+    .schedule-month-heading {
+        font-size: 18px;
+        margin-bottom: 12px;
+        padding: 6px 0;
+    }
+    
+    .schedule-item {
+        flex-direction: column;
+        gap: 8px;
+        padding: 12px;
+    }
+    
+    .schedule-date {
+        min-width: 85px;
+        width: 85px;
+        flex-direction: row;
+        align-items: baseline;
+        gap: 8px;
+    }
+    
+    .schedule-date .date {
+        font-size: 16px;
+        min-width: 32px;
+    }
+    
+    .schedule-date .weekday {
+        font-size: 13px;
+    }
+    
+    .schedule-time {
+        min-width: auto;
+        width: 100%;
+        font-size: 13px;
+    }
+    
+    .schedule-title {
+        font-size: 17px;
+    }
+}
+
+@media (max-width: 480px) {
+    .schedule-container {
+        padding: 8px;
+    }
+    
+    .schedule-heading {
+        font-size: 18px;
+        margin-bottom: 12px;
+        padding-bottom: 6px;
+    }
+    
+    .schedule-month-group {
+        margin-bottom: 20px;
+    }
+    
+    .schedule-month-heading {
+        font-size: 16px;
+        margin-bottom: 10px;
+        padding: 4px 0;
+    }
+    
+    .schedule-item {
+        padding: 10px;
+    }
+    
+    .schedule-date {
+        min-width: 75px;
+        width: 75px;
+    }
+    
+    .schedule-date .date {
+        font-size: 15px;
+        min-width: 30px;
+    }
+    
+    .schedule-date .weekday {
+        font-size: 12px;
+    }
+    
+    .schedule-title {
+        font-size: 16px;
+    }
+}
+
+/* カレンダー表示スタイル */
+.schedule-calendar-container {
+    max-width: 100%;
+}
+
+.schedule-calendar-month {
+    margin-bottom: 40px;
+}
+
+.schedule-calendar-month:last-child {
+    margin-bottom: 0;
+}
+
+.schedule-calendar-month-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #333;
+    margin: 0 0 16px 0;
+    padding: 8px 0;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.schedule-calendar {
+    width: 100%;
+}
+
+.schedule-calendar-table {
+    width: 100%;
+    border-collapse: collapse;
+    border-spacing: 0;
+    background: #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    border-radius: 8px;
+    overflow: hidden;
+    table-layout: fixed; /* 列幅を均等に */
+}
+
+.schedule-calendar-weekday {
+    padding: 12px 8px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 14px;
+    color: #666;
+    background: #f5f5f5;
+    border-bottom: 2px solid #e0e0e0;
+    width: 14.28%; /* 列幅を均等に（7列） */
+}
+
+.schedule-calendar-weekday:first-child {
+    border-left: none;
+}
+
+.schedule-calendar-weekday:last-child {
+    border-right: none;
+}
+
+.schedule-calendar-day {
+    width: 14.28%; /* 列幅を均等に（7列） */
+    height: 120px; /* 高さを均等に固定 */
+    padding: 8px 4px;
+    vertical-align: top;
+    border: 1px solid #e0e0e0;
+    background: #ffffff;
+    position: relative;
+    transition: background-color 0.2s ease;
+    overflow: hidden; /* はみ出しを防止 */
+    box-sizing: border-box;
+}
+
+.schedule-calendar-day:hover {
+    background: #f9f9f9;
+}
+
+.schedule-calendar-day-other-month {
+    background: #fafafa;
+    color: #999;
+}
+
+.schedule-calendar-day-today {
+    background: #e3f2fd;
+    border: 2px solid #2196f3;
+}
+
+.schedule-calendar-day-today .schedule-calendar-day-number {
+    font-weight: 700;
+    color: #2196f3;
+}
+
+.schedule-calendar-day-has-events {
+    background: #fff9e6;
+}
+
+.schedule-calendar-day-number {
+    font-size: 16px; /* フォントサイズで調整 */
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 4px;
+    text-align: center; /* 中央に表示 */
+    padding: 0;
+    line-height: 1.2;
+}
+
+.schedule-calendar-day-other-month .schedule-calendar-day-number {
+    color: #999;
+}
+
+.schedule-calendar-day-events {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 4px;
+}
+
+.schedule-calendar-event {
+    font-size: 12px; /* フォントサイズで調整 */
+    padding: 3px 4px;
+    background: #4caf50;
+    color: #ffffff;
+    border-radius: 3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.4;
+    transition: background-color 0.2s ease;
+    margin-bottom: 2px;
+}
+
+.schedule-calendar-event:hover {
+    background: #45a049;
+}
+
+.schedule-calendar-event-more {
+    font-size: 10px;
+    padding: 2px 4px;
+    color: #666;
+    text-align: right; /* 右詰め */
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    border-radius: 3px;
+    margin-top: 2px;
+}
+
+.schedule-calendar-event-more:hover {
+    background: #f0f0f0;
+    color: #333;
+}
+
+/* 吹き出しリスト（3つ目以降のイベント用） */
+.schedule-event-popup {
+    position: fixed;
+    z-index: 99998;
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    min-width: 200px;
+    max-width: 300px;
+    max-height: 400px;
+    overflow: hidden;
+}
+
+.schedule-event-popup-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.schedule-event-popup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border-bottom: 1px solid #e0e0e0;
+    background: #f5f5f5;
+}
+
+.schedule-event-popup-date {
+    font-weight: 600;
+    font-size: 14px;
+    color: #333;
+}
+
+.schedule-event-popup-close {
+    background: transparent;
+    border: none;
+    font-size: 20px;
+    line-height: 1;
+    color: #666;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.schedule-event-popup-close:hover {
+    background: #e0e0e0;
+    color: #333;
+}
+
+.schedule-event-popup-list {
+    max-height: 350px;
+    overflow-y: auto;
+    padding: 4px 0;
+}
+
+.schedule-event-popup-item {
+    padding: 8px 12px;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background-color 0.2s ease;
+}
+
+.schedule-event-popup-item:last-child {
+    border-bottom: none;
+}
+
+.schedule-event-popup-item:hover {
+    background: #f9f9f9;
+}
+
+.schedule-event-popup-item-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.schedule-event-popup-item-time {
+    font-size: 11px;
+    color: #666;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.schedule-event-popup-item-title-text {
+    font-size: 13px;
+    color: #333;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* カレンダー表示のレスポンシブ対応 */
+@media (max-width: 768px) {
+    .schedule-calendar-day {
+        height: 100px; /* 高さを均等に（フォントサイズで調整） */
+        padding: 6px 2px;
+    }
+    
+    .schedule-calendar-day-number {
+        font-size: 14px; /* フォントサイズで調整 */
+    }
+    
+    .schedule-calendar-event {
+        font-size: 11px; /* フォントサイズで調整 */
+        padding: 2px 3px;
+    }
+    
+    .schedule-calendar-weekday {
+        padding: 10px 4px;
+        font-size: 13px; /* フォントサイズで調整 */
+    }
+    
+    .schedule-calendar-month-title {
+        font-size: 18px;
+    }
+}
+
+@media (max-width: 480px) {
+    .schedule-calendar-day {
+        height: 80px; /* 高さを均等に（フォントサイズで調整） */
+        padding: 4px 1px;
+    }
+    
+    .schedule-calendar-day-number {
+        font-size: 13px; /* フォントサイズで調整 */
+        margin-bottom: 2px;
+    }
+    
+    .schedule-calendar-event {
+        font-size: 10px; /* フォントサイズで調整 */
+        padding: 2px 2px;
+    }
+    
+    .schedule-calendar-weekday {
+        padding: 8px 2px;
+        font-size: 12px; /* フォントサイズで調整 */
+    }
+    
+    .schedule-calendar-month-title {
+        font-size: 16px;
+    }
+}
