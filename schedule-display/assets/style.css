@@ -103,6 +103,7 @@
     color: #333;
     font-weight: 600;
     padding-top: 2px;
+    /* 背景色はICSから取得したCOLOR情報を優先（インラインスタイルで設定） */
 }
 
 /* エラー・空メッセージ */
@@ -541,19 +542,23 @@
 .schedule-calendar-event {
     font-size: 12px; /* フォントサイズで調整 */
     padding: 3px 4px;
-    background: #4caf50;
+    /* 背景色はICSから取得したCOLOR情報を優先（インラインスタイルで設定） */
+    /* デフォルトは緑（ICSにCOLOR情報がない場合のフォールバック） */
+    background-color: #4caf50;
     color: #ffffff;
     border-radius: 3px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     line-height: 1.4;
-    transition: background-color 0.2s ease;
+    transition: background-color 0.2s ease, opacity 0.2s ease;
     margin-bottom: 2px;
 }
 
+/* ICSからCOLOR情報がある場合は、インラインスタイルで上書きされる */
 .schedule-calendar-event:hover {
-    background: #45a049;
+    /* ホバー時は少し暗くする */
+    opacity: 0.85;
 }
 
 .schedule-calendar-event-more {

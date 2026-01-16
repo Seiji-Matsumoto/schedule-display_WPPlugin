@@ -1287,9 +1287,9 @@ class Schedule_Display {
                             <?php
                             // 背景色を取得（ICSから取得したCOLOR）
                             $event_color = isset($event['color']) && !empty($event['color']) ? $event['color'] : '';
-                            $item_style = 'cursor: pointer;';
+                            $title_style = '';
                             if (!empty($event_color)) {
-                                $item_style .= ' background-color: ' . esc_attr($event_color) . ';';
+                                $title_style = 'background-color: ' . esc_attr($event_color) . ';';
                                 // 背景色が暗い場合は文字色を白に
                                 $hex = str_replace('#', '', $event_color);
                                 $r = hexdec(substr($hex, 0, 2));
@@ -1297,8 +1297,12 @@ class Schedule_Display {
                                 $b = hexdec(substr($hex, 4, 2));
                                 $brightness = ($r * 299 + $g * 587 + $b * 114) / 1000;
                                 if ($brightness < 128) {
-                                    $item_style .= ' color: #ffffff;';
+                                    $title_style .= ' color: #ffffff;';
+                                } else {
+                                    $title_style .= ' color: #333333;';
                                 }
+                                // パディングとボーダーラディウスを追加
+                                $title_style .= ' padding: 2px 6px; border-radius: 3px; display: inline-block;';
                             }
                             ?>
                             <div class="schedule-item" 
@@ -1309,7 +1313,7 @@ class Schedule_Display {
                                  data-event-title="<?php echo esc_attr($event['title']); ?>"
                                  data-event-location="<?php echo esc_attr($event['location'] ?? ''); ?>"
                                  data-event-description="<?php echo esc_attr($event['description'] ?? ''); ?>"
-                                 style="<?php echo $item_style; ?>">
+                                 style="cursor: pointer;">
                                 <div class="schedule-date">
                                     <span class="date"><?php echo esc_html($event['date_display']); ?></span>
                                     <span class="weekday"><?php echo esc_html($event['weekday']); ?></span>
@@ -1317,7 +1321,7 @@ class Schedule_Display {
                                 <?php if (!empty($event['time'])) : ?>
                                     <div class="schedule-time"><?php echo esc_html($event['time']); ?></div>
                                 <?php endif; ?>
-                                <div class="schedule-title"><?php echo esc_html($event['title']); ?></div>
+                                <div class="schedule-title"<?php echo !empty($title_style) ? ' style="' . $title_style . '"' : ''; ?>><?php echo esc_html($event['title']); ?></div>
                             </div>
                         <?php 
                         $event_index++;
