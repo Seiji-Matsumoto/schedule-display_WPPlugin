@@ -1139,22 +1139,21 @@ class Schedule_Display {
         // 複数のICSからイベントを取得して統合
         $all_events = array();
         $debug_info = '';
+        $debug_infos = array(); // すべてのICSのデバッグ情報を収集
         
         foreach ($ics_urls as $ics_url) {
             $events = $this->ics_parser->get_events($ics_url, $days, $exclude_patterns, $debug_mode);
             
             if (is_wp_error($events)) {
                 if ($debug_mode) {
-                    $debug_info .= '<div class="schedule-debug">ICS URL: ' . esc_html($ics_url) . ' - エラー: ' . esc_html($events->get_error_message()) . '</div>';
+                    $debug_infos[] = '<div class="schedule-debug">ICS URL: ' . esc_html($ics_url) . ' - エラー: ' . esc_html($events->get_error_message()) . '</div>';
                 }
                 continue; // エラーが発生したICSはスキップ
             }
             
-            // デバッグ情報を取得（最初のICSのみ）
-            if ($debug_mode && isset($events['_debug']) && empty($debug_info)) {
-                $debug_info = $events['_debug'];
-                unset($events['_debug']);
-            } elseif ($debug_mode && isset($events['_debug'])) {
+            // デバッグ情報を取得（すべてのICS）
+            if ($debug_mode && isset($events['_debug'])) {
+                $debug_infos[] = $events['_debug'];
                 unset($events['_debug']);
             }
             
@@ -1162,6 +1161,11 @@ class Schedule_Display {
             if (!empty($events)) {
                 $all_events = array_merge($all_events, $events);
             }
+        }
+        
+        // デバッグ情報を統合
+        if ($debug_mode && !empty($debug_infos)) {
+            $debug_info = implode('', $debug_infos);
         }
         
         // 日付順でソート
@@ -1941,6 +1945,9 @@ class Schedule_ICS_Parser {
             <h4>基本情報</h4>
             <ul>
                 <li><strong>ICS URL:</strong> <?php echo esc_html($debug_info['ics_url']); ?></li>
+                <?php if (isset($debug_info['calendar_name']) && !empty($debug_info['calendar_name'])) : ?>
+                <li><strong>カレンダー名:</strong> <?php echo esc_html($debug_info['calendar_name']); ?></li>
+                <?php endif; ?>
                 <li><strong>表示日数:</strong> <?php echo esc_html($debug_info['days_ahead']); ?>日</li>
                 <li><strong>除外パターン:</strong> <?php echo esc_html($debug_info['exclude_patterns'] ?: '(なし)'); ?></li>
                 <li><strong>生ICSデータサイズ:</strong> <?php echo esc_html(number_format($debug_info['raw_ics_length'])); ?> バイト</li>
@@ -1988,6 +1995,10 @@ class Schedule_ICS_Parser {
             }
         }
         
+        // カレンダーレベルの色情報を取得（VCALENDARレベル）
+        $calendar_color = '';
+        $in_vcalendar = false;
+        
         // 継続行を結合（ICS形式の処理）
         $normalized_lines = array();
         $current_continuation = '';
@@ -2013,6 +2024,39 @@ class Schedule_ICS_Parser {
         
         // 正規化された行を処理
         foreach ($normalized_lines as $line) {
+            // VCALENDAR開始
+            if ($line === 'BEGIN:VCALENDAR') {
+                $in_vcalendar = true;
+                continue;
+            }
+            
+            // VCALENDAR終了
+            if ($line === 'END:VCALENDAR') {
+                $in_vcalendar = false;
+                continue;
+            }
+            
+            // カレンダーレベルのCOLOR情報を取得
+            if ($in_vcalendar && preg_match('/^([^:]+):(.*)$/', $line, $matches)) {
+                $property_raw = trim($matches[1]);
+                $value = isset($matches[2]) ? $matches[2] : '';
+                $property = strtoupper($property_raw);
+                
+                // COLORプロパティを確認
+                if (empty($calendar_color)) {
+                    if ($property === 'COLOR') {
+                        $calendar_color = trim($value);
+                    } elseif ($property === 'X-APPLE-CALENDAR-COLOR') {
+                        $calendar_color = trim($value);
+                    } elseif ($property === 'X-WR-CALNAME') {
+                        // カレンダー名も保存（デバッグ用）
+                        if ($debug_info !== null) {
+                            $debug_info['calendar_name'] = trim($value);
+                        }
+                    }
+                }
+            }
+            
             // イベント開始
             if ($line === 'BEGIN:VEVENT') {
                 $current_event = array();
@@ -2029,7 +2073,8 @@ class Schedule_ICS_Parser {
                     }
                 }
                 
-                $event_data = $this->process_event($current_event, $start_date, $end_date, $exclude_list);
+                // カレンダーの色情報を渡す
+                $event_data = $this->process_event($current_event, $start_date, $end_date, $exclude_list, $calendar_color);
                 if ($event_data !== null) {
                     $events[] = $event_data;
                 }
@@ -2080,7 +2125,7 @@ class Schedule_ICS_Parser {
         return $events;
     }
     
-    private function process_event($event_data, $start_date, $end_date, $exclude_list = array()) {
+    private function process_event($event_data, $start_date, $end_date, $exclude_list = array(), $calendar_color = '') {
         // DTSTART解析（TZIDパラメータを考慮）
         $dtstart_tzid = isset($event_data['DTSTART_TZID']) ? $event_data['DTSTART_TZID'] : null;
         $dtstart = $this->parse_datetime($event_data['DTSTART'] ?? '', $dtstart_tzid);
@@ -2182,6 +2227,7 @@ class Schedule_ICS_Parser {
         $location = urldecode($location);
         
         // 背景色（COLOR）を取得（Googleカレンダーの背景色）
+        // まずイベント固有のCOLORを確認
         $color = isset($event_data['COLOR']) ? trim($event_data['COLOR']) : '';
         // COLORが空の場合は、X-APPLE-CALENDAR-COLORも確認（一部のカレンダーで使用）
         if (empty($color) && isset($event_data['X-APPLE-CALENDAR-COLOR'])) {
@@ -2190,6 +2236,11 @@ class Schedule_ICS_Parser {
         // COLORが空の場合は、X-COLORも確認
         if (empty($color) && isset($event_data['X-COLOR'])) {
             $color = trim($event_data['X-COLOR']);
+        }
+        
+        // イベント固有の色が初期値または空の場合は、カレンダーレベルの色を使用
+        if (empty($color) && !empty($calendar_color)) {
+            $color = $calendar_color;
         }
         
         // 色コードを正規化（#が付いていない場合は追加、RGB形式の場合は変換）
