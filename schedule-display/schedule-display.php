@@ -345,9 +345,25 @@ class Schedule_Display {
     
     public function register_settings() {
         register_setting('schedule_display_settings', 'schedule_ics_url');
+        register_setting('schedule_display_settings', 'schedule_ics_url_color', array(
+            'default' => '',
+            'sanitize_callback' => 'sanitize_hex_color'
+        ));
         register_setting('schedule_display_settings', 'schedule_ics_url_1');
+        register_setting('schedule_display_settings', 'schedule_ics_url_1_color', array(
+            'default' => '',
+            'sanitize_callback' => 'sanitize_hex_color'
+        ));
         register_setting('schedule_display_settings', 'schedule_ics_url_2');
+        register_setting('schedule_display_settings', 'schedule_ics_url_2_color', array(
+            'default' => '',
+            'sanitize_callback' => 'sanitize_hex_color'
+        ));
         register_setting('schedule_display_settings', 'schedule_ics_url_3');
+        register_setting('schedule_display_settings', 'schedule_ics_url_3_color', array(
+            'default' => '',
+            'sanitize_callback' => 'sanitize_hex_color'
+        ));
         register_setting('schedule_display_settings', 'schedule_days_ahead', array(
             'default' => 60,
             'sanitize_callback' => 'absint'
@@ -569,8 +585,17 @@ class Schedule_Display {
         ?>
         <script>
         jQuery(document).ready(function($) {
-            // カラーピッカーを初期化
-            $('.color-picker').wpColorPicker();
+            // カラーピッカーを初期化（すべてのwp-color-pickerクラスに対して）
+            $('.wp-color-picker').wpColorPicker({
+                defaultColor: '#4caf50',
+                change: function(event, ui) {
+                    // カラー変更時の処理（必要に応じて）
+                },
+                clear: function() {
+                    // クリア時の処理（デフォルト色に戻す）
+                    $(this).val('#4caf50');
+                }
+            });
             
             // テーマ選択時の動作
             $('#schedule_theme').on('change', function() {
@@ -612,9 +637,18 @@ class Schedule_Display {
                                    name="schedule_ics_url" 
                                    value="<?php echo esc_attr(get_option('schedule_ics_url', '')); ?>" 
                                    class="regular-text"
-                                   placeholder="https://calendar.google.com/calendar/ical/.../basic.ics" />
+                                   placeholder="https://calendar.google.com/calendar/ical/.../basic.ics" 
+                                   style="width: 70%; margin-right: 10px;" />
+                            <input type="text" 
+                                   id="schedule_ics_url_color" 
+                                   name="schedule_ics_url_color" 
+                                   value="<?php echo esc_attr(get_option('schedule_ics_url_color', '')); ?>" 
+                                   class="wp-color-picker"
+                                   data-default-color="#4caf50"
+                                   style="width: 100px;" />
                             <p class="description">
                                 Googleカレンダーの「設定と共有」→「カレンダーの統合」から取得したICS形式のURLを入力してください。<br>
+                                右側の入力欄に背景色を指定できます（例：#4caf50）。未指定の場合はデフォルト色（緑）が使用されます。<br>
                                 <strong>重要：</strong>手入力の予定のみを表示したい場合は、手入力用のカレンダー（例：matsu@object-lab.co.jp）のICS URLを指定してください。<br>
                                 複数のカレンダーを統合したURLを使うと、日本の祝日なども表示されます。<br>
                                 <strong>注意：</strong>タイトル（SUMMARY）がある予定のみが表示されます。<br>
@@ -632,8 +666,16 @@ class Schedule_Display {
                                    name="schedule_ics_url_1" 
                                    value="<?php echo esc_attr(get_option('schedule_ics_url_1', '')); ?>" 
                                    class="regular-text"
-                                   placeholder="https://calendar.google.com/calendar/ical/.../basic.ics" />
-                            <p class="description">複数のカレンダーを統合表示する場合に使用します。リンク未入力の場合は無視されます。</p>
+                                   placeholder="https://calendar.google.com/calendar/ical/.../basic.ics"
+                                   style="width: 70%; margin-right: 10px;" />
+                            <input type="text" 
+                                   id="schedule_ics_url_1_color" 
+                                   name="schedule_ics_url_1_color" 
+                                   value="<?php echo esc_attr(get_option('schedule_ics_url_1_color', '')); ?>" 
+                                   class="wp-color-picker"
+                                   data-default-color="#4caf50"
+                                   style="width: 100px;" />
+                            <p class="description">複数のカレンダーを統合表示する場合に使用します。リンク未入力の場合は無視されます。右側の入力欄に背景色を指定できます。</p>
                         </td>
                     </tr>
                     <tr>
@@ -646,8 +688,16 @@ class Schedule_Display {
                                    name="schedule_ics_url_2" 
                                    value="<?php echo esc_attr(get_option('schedule_ics_url_2', '')); ?>" 
                                    class="regular-text"
-                                   placeholder="https://calendar.google.com/calendar/ical/.../basic.ics" />
-                            <p class="description">複数のカレンダーを統合表示する場合に使用します。リンク未入力の場合は無視されます。</p>
+                                   placeholder="https://calendar.google.com/calendar/ical/.../basic.ics"
+                                   style="width: 70%; margin-right: 10px;" />
+                            <input type="text" 
+                                   id="schedule_ics_url_2_color" 
+                                   name="schedule_ics_url_2_color" 
+                                   value="<?php echo esc_attr(get_option('schedule_ics_url_2_color', '')); ?>" 
+                                   class="wp-color-picker"
+                                   data-default-color="#4caf50"
+                                   style="width: 100px;" />
+                            <p class="description">複数のカレンダーを統合表示する場合に使用します。リンク未入力の場合は無視されます。右側の入力欄に背景色を指定できます。</p>
                         </td>
                     </tr>
                     <tr>
@@ -660,8 +710,16 @@ class Schedule_Display {
                                    name="schedule_ics_url_3" 
                                    value="<?php echo esc_attr(get_option('schedule_ics_url_3', '')); ?>" 
                                    class="regular-text"
-                                   placeholder="https://calendar.google.com/calendar/ical/.../basic.ics" />
-                            <p class="description">複数のカレンダーを統合表示する場合に使用します。リンク未入力の場合は無視されます。</p>
+                                   placeholder="https://calendar.google.com/calendar/ical/.../basic.ics"
+                                   style="width: 70%; margin-right: 10px;" />
+                            <input type="text" 
+                                   id="schedule_ics_url_3_color" 
+                                   name="schedule_ics_url_3_color" 
+                                   value="<?php echo esc_attr(get_option('schedule_ics_url_3_color', '')); ?>" 
+                                   class="wp-color-picker"
+                                   data-default-color="#4caf50"
+                                   style="width: 100px;" />
+                            <p class="description">複数のカレンダーを統合表示する場合に使用します。リンク未入力の場合は無視されます。右側の入力欄に背景色を指定できます。</p>
                         </td>
                     </tr>
                     <tr>
@@ -1159,7 +1217,7 @@ class Schedule_Display {
                 unset($events['_debug']);
             }
             
-            // イベントを統合
+            // イベントを統合（各イベントには既にICS URL情報が含まれている）
             if (!empty($events)) {
                 $all_events = array_merge($all_events, $events);
                 // デバッグ用：各URLごとのイベントを記録
@@ -1655,15 +1713,55 @@ class Schedule_Display {
                                             $tooltip_text = $start_time . '~ ' . $event_title;
                                         }
                                         
-                                        // 背景色を取得（displayBackgroundColorプロパティから）
-                                        $display_bg_color = isset($event['displayBackgroundColor']) ? $event['displayBackgroundColor'] : '';
+                                        // 背景色を取得（ICS URLの設定色を優先、次にICSのCOLOR情報）
+                                        $display_bg_color = '';
+                                        
+                                        // まず、ICS URLに対応する背景色設定を取得
+                                        if (isset($event['ics_url'])) {
+                                            $ics_url = $event['ics_url'];
+                                            // どのICS URL設定に対応するか判定
+                                            $main_ics_url = get_option('schedule_ics_url', '');
+                                            if ($ics_url === $main_ics_url) {
+                                                $display_bg_color = get_option('schedule_ics_url_color', '');
+                                            } else {
+                                                for ($i = 1; $i <= 3; $i++) {
+                                                    $url = get_option("schedule_ics_url_{$i}", '');
+                                                    if ($ics_url === $url) {
+                                                        $display_bg_color = get_option("schedule_ics_url_{$i}_color", '');
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        
+                                        // ICS URLの設定色がない場合は、ICSのCOLOR情報を使用
+                                        if (empty($display_bg_color) && isset($event['displayBackgroundColor'])) {
+                                            $display_bg_color = $event['displayBackgroundColor'];
+                                        }
+                                        
+                                        // それでも色がない場合はデフォルト色（緑）を使用
+                                        if (empty($display_bg_color)) {
+                                            $display_bg_color = '#4caf50';
+                                        }
+                                        
+                                        // 色コードを正規化（#が付いていない場合は追加）
+                                        if (strpos($display_bg_color, '#') !== 0) {
+                                            $display_bg_color = '#' . $display_bg_color;
+                                        }
+                                        // 3桁のHEXカラーを6桁に変換
+                                        if (strlen($display_bg_color) === 4) {
+                                            $display_bg_color = '#' . $display_bg_color[1] . $display_bg_color[1] . $display_bg_color[2] . $display_bg_color[2] . $display_bg_color[3] . $display_bg_color[3];
+                                        }
+                                        // 有効なHEXカラーかチェック
+                                        if (!preg_match('/^#[0-9A-Fa-f]{6}$/', $display_bg_color)) {
+                                            $display_bg_color = '#4caf50'; // 無効な場合はデフォルト色
+                                        }
+                                        
                                         $style_attr = 'cursor: pointer;';
                                         // 前景色は常に白に固定
                                         $style_attr .= ' color: #ffffff;';
-                                        // 背景色を設定（空の場合はCSSのデフォルト色を使用）
-                                        if (!empty($display_bg_color)) {
-                                            $style_attr .= ' background-color: ' . esc_attr($display_bg_color) . ';';
-                                        }
+                                        // 背景色を設定
+                                        $style_attr .= ' background-color: ' . esc_attr($display_bg_color) . ';';
                                         ?>
                                         <div class="schedule-calendar-event" 
                                              data-event-index="<?php echo esc_attr($event_display_count - 1); ?>"
@@ -2032,8 +2130,8 @@ class Schedule_ICS_Parser {
         $debug_info['raw_ics_length'] = strlen($body);
         $debug_info['raw_ics_preview'] = substr($body, 0, 2000); // 最初の2000文字
         
-        // ICSパース
-        $events = $this->parse_ics($body, $days_ahead, $exclude_patterns, $debug_info);
+        // ICSパース（ICS URL情報を渡す）
+        $events = $this->parse_ics($body, $days_ahead, $exclude_patterns, $debug_info, $ics_url);
         
         // デバッグ情報を追加
         if ($debug_mode) {
@@ -2087,7 +2185,7 @@ class Schedule_ICS_Parser {
         return ob_get_clean();
     }
     
-    private function parse_ics($ics_content, $days_ahead, $exclude_patterns = '', &$debug_info = null) {
+    private function parse_ics($ics_content, $days_ahead, $exclude_patterns = '', &$debug_info = null, $ics_url = '') {
         $events = array();
         $current_event = null;
         $lines = explode("\n", $ics_content);
@@ -2186,7 +2284,11 @@ class Schedule_ICS_Parser {
                     }
                 }
                 
-                // カレンダーの色情報を渡す
+                // カレンダーの色情報とICS URL情報を渡す
+                // イベントデータにICS URL情報を追加
+                if (!empty($ics_url)) {
+                    $current_event['ics_url'] = $ics_url;
+                }
                 $event_data = $this->process_event($current_event, $start_date, $end_date, $exclude_list, $calendar_color);
                 if ($event_data !== null) {
                     // RRULEがある場合は配列が返される
@@ -2276,9 +2378,16 @@ class Schedule_ICS_Parser {
         $rrule_str = $event_data['RRULE'];
         $rrule = $this->parse_rrule($rrule_str);
         
+        // ICS URL情報を保持（event_dataに含まれている場合）
+        $ics_url = isset($event_data['ics_url']) ? $event_data['ics_url'] : null;
+        
         if (!$rrule) {
             // RRULEが解析できない場合は単一イベントとして処理
             if ($dtstart >= $start_date && $dtstart <= $end_date) {
+                // ICS URL情報を保持
+                if ($ics_url !== null) {
+                    $event_data['ics_url'] = $ics_url;
+                }
                 return $this->create_event_data($event_data, $dtstart, $exclude_list, $calendar_color);
             }
             return null;
@@ -2321,6 +2430,10 @@ class Schedule_ICS_Parser {
                 // EXDATE（除外日）でない場合
                 $date_key = $current_date->format('Y-m-d');
                 if (!in_array($date_key, $exdates)) {
+                    // ICS URL情報を保持
+                    if ($ics_url !== null) {
+                        $event_data['ics_url'] = $ics_url;
+                    }
                     $event_instance = $this->create_event_data($event_data, $current_date, $exclude_list, $calendar_color);
                     if ($event_instance !== null) {
                         $expanded_events[] = $event_instance;
@@ -2643,7 +2756,7 @@ class Schedule_ICS_Parser {
             }
         }
         
-        return array(
+        $result = array(
             'date' => $dtstart->format('Y-m-d'),
             'date_display' => $date_display,
             'weekday' => $weekday,
@@ -2654,6 +2767,13 @@ class Schedule_ICS_Parser {
             'displayBackgroundColor' => $display_background_color,
             'datetime' => $dtstart
         );
+        
+        // ICS URL情報があれば保持（繰り返しイベント展開時など）
+        if (isset($event_data['ics_url'])) {
+            $result['ics_url'] = $event_data['ics_url'];
+        }
+        
+        return $result;
     }
     
     /**
