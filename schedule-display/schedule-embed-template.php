@@ -27,7 +27,22 @@ if (!defined('ABSPATH')) {
                 <article id="post-<?php the_ID(); ?>" <?php post_class(); ?>>
                     <div class="entry-content">
                         <?php
-                        the_content();
+                        // デバッグ用：ショートコードの存在確認
+                        $has_shortcode = false;
+                        $content = get_the_content();
+                        if (!empty($content) && has_shortcode($content, 'schedule_display')) {
+                            $has_shortcode = true;
+                            the_content();
+                        } else {
+                            // ショートコードが含まれていない場合は自動的に追加
+                            echo do_shortcode('[schedule_display]');
+                        }
+                        
+                        // デバッグ用：ショートコードの実行確認
+                        if (defined('WP_DEBUG') && WP_DEBUG) {
+                            echo '<!-- DEBUG: Shortcode found: ' . ($has_shortcode ? 'yes' : 'no') . ' -->';
+                            echo '<!-- DEBUG: Content length: ' . strlen($content) . ' -->';
+                        }
                         
                         wp_link_pages(array(
                             'before' => '<div class="page-links">' . esc_html__('Pages:', 'textdomain'),

@@ -1140,6 +1140,7 @@ class Schedule_Display {
         $all_events = array();
         $debug_info = '';
         $debug_infos = array(); // すべてのICSのデバッグ情報を収集
+        $events_by_url = array(); // 各URLごとのイベントを記録（デバッグ用）
         
         foreach ($ics_urls as $ics_url) {
             $events = $this->ics_parser->get_events($ics_url, $days, $exclude_patterns, $debug_mode);
@@ -1147,6 +1148,7 @@ class Schedule_Display {
             if (is_wp_error($events)) {
                 if ($debug_mode) {
                     $debug_infos[] = '<div class="schedule-debug">ICS URL: ' . esc_html($ics_url) . ' - エラー: ' . esc_html($events->get_error_message()) . '</div>';
+                    $events_by_url[$ics_url] = array('error' => $events->get_error_message(), 'events' => array());
                 }
                 continue; // エラーが発生したICSはスキップ
             }
@@ -1160,12 +1162,83 @@ class Schedule_Display {
             // イベントを統合
             if (!empty($events)) {
                 $all_events = array_merge($all_events, $events);
+                // デバッグ用：各URLごとのイベントを記録
+                if ($debug_mode) {
+                    $events_by_url[$ics_url] = $events;
+                }
+            } else {
+                // イベントが空の場合も記録
+                if ($debug_mode) {
+                    $events_by_url[$ics_url] = array();
+                }
             }
         }
         
         // デバッグ情報を統合
-        if ($debug_mode && !empty($debug_infos)) {
-            $debug_info = implode('', $debug_infos);
+        if ($debug_mode) {
+            // テスト用：デバッグモードが有効であることを確認
+            error_log("DEBUG: Debug mode is enabled. URLs count: " . count($ics_urls) . ", Events by URL count: " . count($events_by_url));
+            
+            // 設定されているすべてのICS URLの情報を先頭に追加
+            $configured_urls_info = '<div class="schedule-debug" style="margin-top: 20px; padding: 15px; background: #e3f2fd; border: 1px solid #2196f3; border-radius: 8px;">';
+            $configured_urls_info .= '<h3 style="margin-top: 0; color: #1976d2;">📋 設定されているICS URL一覧</h3>';
+            $configured_urls_info .= '<ul style="margin: 10px 0; padding-left: 20px;">';
+            
+            // Googleカレンダー ICS URL（メイン）
+            $main_ics_url = get_option('schedule_ics_url', '');
+            $configured_urls_info .= '<li><strong>Googleカレンダー ICS URL:</strong> ' . (!empty($main_ics_url) ? esc_html($main_ics_url) : '<span style="color: #999;">(未設定)</span>') . '</li>';
+            
+            // ICS URL 1, 2, 3
+            for ($i = 1; $i <= 3; $i++) {
+                $url = get_option("schedule_ics_url_{$i}", '');
+                $configured_urls_info .= '<li><strong>ICS URL ' . $i . ':</strong> ' . (!empty($url) ? esc_html($url) : '<span style="color: #999;">(未設定)</span>') . '</li>';
+            }
+            
+            $configured_urls_info .= '</ul>';
+            $configured_urls_info .= '<p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">実際に使用されたURL: ' . count($ics_urls) . '件</p>';
+            $configured_urls_info .= '</div>';
+            
+            // 各ICS URLごとのイベント一覧を追加
+            $events_list_info = '<div class="schedule-debug" style="margin-top: 20px; padding: 15px; background: #f3e5f5; border: 1px solid #9c27b0; border-radius: 8px;">';
+            $events_list_info .= '<h3 style="margin-top: 0; color: #7b1fa2;">📅 各ICS URLごとのイベント一覧</h3>';
+            
+            // Googleカレンダー ICS URL（メイン）
+            $main_ics_url = get_option('schedule_ics_url', '');
+            if (!empty($main_ics_url) && isset($events_by_url[$main_ics_url])) {
+                $events_list_info .= $this->format_events_list_for_debug('Googleカレンダー ICS URL', $main_ics_url, $events_by_url[$main_ics_url]);
+            } else {
+                $events_list_info .= $this->format_events_list_for_debug('Googleカレンダー ICS URL', $main_ics_url, array());
+            }
+            
+            // ICS URL 1, 2, 3
+            for ($i = 1; $i <= 3; $i++) {
+                $url = get_option("schedule_ics_url_{$i}", '');
+                if (!empty($url) && isset($events_by_url[$url])) {
+                    $events_list_info .= $this->format_events_list_for_debug('ICS URL ' . $i, $url, $events_by_url[$url]);
+                } elseif (!empty($url)) {
+                    $events_list_info .= $this->format_events_list_for_debug('ICS URL ' . $i, $url, array());
+                } else {
+                    $events_list_info .= $this->format_events_list_for_debug('ICS URL ' . $i, '', array());
+                }
+            }
+            
+            $events_list_info .= '</div>';
+            
+            // 各ICSのデバッグ情報と結合
+            if (!empty($debug_infos)) {
+                $debug_info = $configured_urls_info . $events_list_info . implode('', $debug_infos);
+            } else {
+                $debug_info = $configured_urls_info . $events_list_info;
+            }
+            
+            // デバッグモードが有効であることを明示的に表示
+            $debug_info = '<div class="schedule-debug" style="margin-top: 20px; padding: 15px; background: #ffebee; border: 2px solid #f44336; border-radius: 8px;"><strong style="color: #c62828;">🔍 デバッグモード: 有効</strong><br><small>デバッグ情報のテスト表示</small></div>' . $debug_info;
+            
+            // テスト用：デバッグ情報の長さを確認
+            error_log("DEBUG: Debug info length: " . strlen($debug_info));
+        } else {
+            $debug_info = ''; // デバッグモードが無効の場合は空文字列
+            error_log("DEBUG: Debug mode is disabled");
         }
         
         // 日付順でソート
@@ -1190,13 +1263,6 @@ class Schedule_Display {
             }
             
             return $error_msg;
-        }
-        
-        // デバッグ情報を取得（デバッグモードが有効な場合）
-        $debug_info = '';
-        if ($debug_mode && isset($events['_debug'])) {
-            $debug_info = $events['_debug'];
-            unset($events['_debug']); // デバッグ情報を削除
         }
         
         if (empty($events)) {
@@ -1853,6 +1919,67 @@ class Schedule_Display {
         $weekdays = array('日', '月', '火', '水', '木', '金', '土');
         return '(' . $weekdays[$w] . ')';
     }
+    
+    /**
+     * 各ICS URLごとのイベント一覧をフォーマット（デバッグ用）
+     */
+    private function format_events_list_for_debug($label, $url, $events) {
+        ob_start();
+        ?>
+        <div style="margin: 15px 0; padding: 12px; background: #fff; border: 1px solid #e0e0e0; border-radius: 6px;">
+            <h4 style="margin: 0 0 10px 0; color: #7b1fa2; font-size: 14px;">
+                <?php echo esc_html($label); ?>
+                <?php if (!empty($url)) : ?>
+                    <span style="font-size: 11px; color: #666; font-weight: normal;">(<?php echo esc_html($url); ?>)</span>
+                <?php else : ?>
+                    <span style="font-size: 11px; color: #999; font-weight: normal;">(未設定)</span>
+                <?php endif; ?>
+            </h4>
+            <?php if (isset($events['error'])) : ?>
+                <p style="margin: 5px 0; color: red; font-size: 12px;">❌ エラー: <?php echo esc_html($events['error']); ?></p>
+            <?php elseif (empty($events) || count($events) === 0) : ?>
+                <p style="margin: 5px 0; color: #999; font-size: 12px;">📭 イベントなし</p>
+            <?php else : ?>
+                <p style="margin: 5px 0 10px 0; font-size: 12px; color: #666;">取得イベント数: <strong><?php echo count($events); ?></strong>件</p>
+                <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                    <thead>
+                        <tr style="background: #f5f5f5;">
+                            <th style="padding: 6px; text-align: left; border-bottom: 1px solid #ddd; width: 100px;">日付</th>
+                            <th style="padding: 6px; text-align: left; border-bottom: 1px solid #ddd; width: 80px;">時間</th>
+                            <th style="padding: 6px; text-align: left; border-bottom: 1px solid #ddd;">タイトル</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php 
+                        $display_count = 0;
+                        $max_display = 50; // 最大50件まで表示
+                        foreach ($events as $event) : 
+                            if ($display_count >= $max_display) break;
+                            $display_count++;
+                            $event_date = isset($event['date']) ? $event['date'] : '';
+                            $event_time = isset($event['time']) ? $event['time'] : '';
+                            $event_title = isset($event['title']) ? $event['title'] : '（タイトルなし）';
+                        ?>
+                        <tr style="border-bottom: 1px solid #f0f0f0;">
+                            <td style="padding: 6px; color: #333;"><?php echo esc_html($event_date); ?></td>
+                            <td style="padding: 6px; color: #666;"><?php echo esc_html($event_time ?: '終日'); ?></td>
+                            <td style="padding: 6px; color: #333;"><?php echo esc_html($event_title); ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                        <?php if (count($events) > $max_display) : ?>
+                        <tr>
+                            <td colspan="3" style="padding: 6px; text-align: center; color: #999; font-size: 11px;">
+                                ... 他 <?php echo count($events) - $max_display; ?> 件
+                            </td>
+                        </tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
+        </div>
+        <?php
+        return ob_get_clean();
+    }
 }
 
 // ICSパーサークラス
@@ -2062,7 +2189,16 @@ class Schedule_ICS_Parser {
                 // カレンダーの色情報を渡す
                 $event_data = $this->process_event($current_event, $start_date, $end_date, $exclude_list, $calendar_color);
                 if ($event_data !== null) {
-                    $events[] = $event_data;
+                    // RRULEがある場合は配列が返される
+                    if (is_array($event_data) && isset($event_data[0])) {
+                        // 繰り返しイベントが展開された場合
+                        foreach ($event_data as $expanded_event) {
+                            $events[] = $expanded_event;
+                        }
+                    } else {
+                        // 単一イベントの場合
+                        $events[] = $event_data;
+                    }
                 }
                 $current_event = null;
                 continue;
@@ -2119,25 +2255,305 @@ class Schedule_ICS_Parser {
             return null;
         }
         
-        // 表示期間内かチェック
+        // RRULE（繰り返しイベント）がある場合は展開
+        if (!empty($event_data['RRULE'])) {
+            return $this->expand_recurring_event($event_data, $dtstart, $start_date, $end_date, $exclude_list, $calendar_color);
+        }
+        
+        // 表示期間内かチェック（単一イベントの場合）
         if ($dtstart < $start_date || $dtstart > $end_date) {
             return null;
         }
         
+        // 単一イベントの場合は create_event_data を使用
+        return $this->create_event_data($event_data, $dtstart, $exclude_list, $calendar_color);
+    }
+    
+    /**
+     * 繰り返しイベント（RRULE）を展開する
+     */
+    private function expand_recurring_event($event_data, $dtstart, $start_date, $end_date, $exclude_list = array(), $calendar_color = '') {
+        $rrule_str = $event_data['RRULE'];
+        $rrule = $this->parse_rrule($rrule_str);
+        
+        if (!$rrule) {
+            // RRULEが解析できない場合は単一イベントとして処理
+            if ($dtstart >= $start_date && $dtstart <= $end_date) {
+                return $this->create_event_data($event_data, $dtstart, $exclude_list, $calendar_color);
+            }
+            return null;
+        }
+        
+        // EXDATE（除外日）を取得
+        $exdates = array();
+        if (!empty($event_data['EXDATE'])) {
+            $exdate_strs = is_array($event_data['EXDATE']) ? $event_data['EXDATE'] : array($event_data['EXDATE']);
+            foreach ($exdate_strs as $exdate_str) {
+                $exdate = $this->parse_datetime($exdate_str, $event_data['DTSTART_TZID'] ?? null);
+                if ($exdate) {
+                    $exdates[] = $exdate->format('Y-m-d');
+                }
+            }
+        }
+        
+        // 繰り返しインスタンスを生成
+        $expanded_events = array();
+        $current_date = clone $dtstart;
+        $max_instances = 365; // 最大生成数（無限ループ防止）
+        $instance_count = 0;
+        
+        // 繰り返しの終了条件
+        $until = null;
+        if (!empty($rrule['UNTIL'])) {
+            $until = $this->parse_datetime($rrule['UNTIL'], $event_data['DTSTART_TZID'] ?? null);
+        }
+        $count = isset($rrule['COUNT']) ? (int)$rrule['COUNT'] : null;
+        
+        // 表示期間の終了日またはUNTIL/COUNTで制限
+        $limit_date = $end_date;
+        if ($until && $until < $limit_date) {
+            $limit_date = $until;
+        }
+        
+        while ($current_date <= $limit_date && $instance_count < $max_instances) {
+            // 表示期間内かチェック
+            if ($current_date >= $start_date && $current_date <= $end_date) {
+                // EXDATE（除外日）でない場合
+                $date_key = $current_date->format('Y-m-d');
+                if (!in_array($date_key, $exdates)) {
+                    $event_instance = $this->create_event_data($event_data, $current_date, $exclude_list, $calendar_color);
+                    if ($event_instance !== null) {
+                        $expanded_events[] = $event_instance;
+                    }
+                }
+            }
+            
+            // 次の繰り返し日を計算
+            $next_date = $this->calculate_next_recurrence($current_date, $rrule, $dtstart);
+            if (!$next_date || $next_date <= $current_date) {
+                break; // 進まなくなったら終了
+            }
+            $current_date = $next_date;
+            $instance_count++;
+            
+            // COUNT制限チェック
+            if ($count !== null && $instance_count >= $count) {
+                break;
+            }
+        }
+        
+        return !empty($expanded_events) ? $expanded_events : null;
+    }
+    
+    /**
+     * RRULE文字列を解析する
+     */
+    private function parse_rrule($rrule_str) {
+        $rrule = array();
+        $parts = explode(';', $rrule_str);
+        
+        foreach ($parts as $part) {
+            if (strpos($part, '=') === false) {
+                continue;
+            }
+            list($key, $value) = explode('=', $part, 2);
+            $key = strtoupper(trim($key));
+            
+            switch ($key) {
+                case 'FREQ':
+                    $rrule['FREQ'] = strtoupper($value);
+                    break;
+                case 'INTERVAL':
+                    $rrule['INTERVAL'] = (int)$value;
+                    break;
+                case 'COUNT':
+                    $rrule['COUNT'] = (int)$value;
+                    break;
+                case 'UNTIL':
+                    $rrule['UNTIL'] = $value;
+                    break;
+                case 'BYDAY':
+                    $rrule['BYDAY'] = explode(',', $value);
+                    break;
+                case 'BYMONTHDAY':
+                    $rrule['BYMONTHDAY'] = array_map('intval', explode(',', $value));
+                    break;
+                case 'BYMONTH':
+                    $rrule['BYMONTH'] = array_map('intval', explode(',', $value));
+                    break;
+            }
+        }
+        
+        if (empty($rrule['FREQ'])) {
+            return null;
+        }
+        
+        // INTERVALのデフォルト値
+        if (!isset($rrule['INTERVAL'])) {
+            $rrule['INTERVAL'] = 1;
+        }
+        
+        return $rrule;
+    }
+    
+    /**
+     * 次の繰り返し日を計算する
+     */
+    private function calculate_next_recurrence($current_date, $rrule, $original_start) {
+        $freq = $rrule['FREQ'];
+        $interval = $rrule['INTERVAL'] ?? 1;
+        $next_date = clone $current_date;
+        
+        switch ($freq) {
+            case 'DAILY':
+                $next_date->modify("+{$interval} days");
+                break;
+                
+            case 'WEEKLY':
+                if (!empty($rrule['BYDAY'])) {
+                    // 特定の曜日のみ（例：BYDAY=MO,WE,FR）
+                    $next_date = $this->calculate_next_byday($current_date, $rrule['BYDAY'], $interval);
+                } else {
+                    // 元の曜日を保持
+                    $next_date->modify("+{$interval} weeks");
+                }
+                break;
+                
+            case 'MONTHLY':
+                if (!empty($rrule['BYMONTHDAY'])) {
+                    // 特定の日のみ（例：BYMONTHDAY=15）
+                    $next_date = $this->calculate_next_bymonthday($current_date, $rrule['BYMONTHDAY'], $interval);
+                } else {
+                    // 同じ日付の次の月
+                    $next_date->modify("+{$interval} months");
+                }
+                break;
+                
+            case 'YEARLY':
+                $next_date->modify("+{$interval} years");
+                break;
+                
+            default:
+                // 不明なFREQの場合はDAILYとして処理
+                $next_date->modify("+{$interval} days");
+                break;
+        }
+        
+        return $next_date;
+    }
+    
+    /**
+     * BYDAY指定の次の日を計算
+     */
+    private function calculate_next_byday($current_date, $byday_array, $interval) {
+        $weekdays = array('SU' => 0, 'MO' => 1, 'TU' => 2, 'WE' => 3, 'TH' => 4, 'FR' => 5, 'SA' => 6);
+        $current_weekday = (int)$current_date->format('w');
+        
+        // 次の該当日を探す
+        $next_date = clone $current_date;
+        $next_date->modify('+1 day');
+        $found = false;
+        $max_days = 14; // 最大2週間探す
+        
+        for ($i = 0; $i < $max_days; $i++) {
+            $weekday = (int)$next_date->format('w');
+            foreach ($byday_array as $day) {
+                $day = strtoupper(trim($day));
+                // +2MO などの形式にも対応
+                if (preg_match('/^(\d+)?([A-Z]{2})$/', $day, $matches)) {
+                    $day_name = $matches[2];
+                    if (isset($weekdays[$day_name]) && $weekdays[$day_name] == $weekday) {
+                        $found = true;
+                        break 2;
+                    }
+                }
+            }
+            $next_date->modify('+1 day');
+        }
+        
+        if ($found && $interval > 1) {
+            // INTERVALが1より大きい場合は、INTERVAL週分進める
+            $next_date->modify('+' . ($interval - 1) . ' weeks');
+        }
+        
+        return $found ? $next_date : null;
+    }
+    
+    /**
+     * BYMONTHDAY指定の次の日を計算
+     */
+    private function calculate_next_bymonthday($current_date, $bymonthday_array, $interval) {
+        $next_date = clone $current_date;
+        $current_day = (int)$current_date->format('j');
+        
+        // 現在の月内で次の該当日を探す
+        $current_month = (int)$current_date->format('n');
+        $found = false;
+        
+        foreach ($bymonthday_array as $day) {
+            if ($day > 0 && $day >= $current_day) {
+                // 今月の該当日
+                $test_date = clone $current_date;
+                $test_date->setDate((int)$test_date->format('Y'), (int)$test_date->format('n'), $day);
+                if ($test_date >= $current_date) {
+                    $next_date = $test_date;
+                    $found = true;
+                    break;
+                }
+            }
+        }
+        
+        if (!$found) {
+            // 次の月へ
+            $next_date->modify('+1 month');
+            $next_date->setDate((int)$next_date->format('Y'), (int)$next_date->format('n'), $bymonthday_array[0]);
+        }
+        
+        if ($interval > 1) {
+            $next_date->modify('+' . ($interval - 1) . ' months');
+        }
+        
+        return $next_date;
+    }
+    
+    /**
+     * イベントデータを作成する（共通処理）
+     */
+    private function create_event_data($event_data, $dtstart, $exclude_list = array(), $calendar_color = '') {
         // DTEND解析（時間指定の場合、TZIDパラメータを考慮）
-        $dtend = null;
+        $duration = null;
         if (!empty($event_data['DTEND'])) {
-            $dtend_tzid = isset($event_data['DTEND_TZID']) ? $event_data['DTEND_TZID'] : $dtstart_tzid;
-            $dtend = $this->parse_datetime($event_data['DTEND'], $dtend_tzid);
+            $dtend_tzid = isset($event_data['DTEND_TZID']) ? $event_data['DTEND_TZID'] : (isset($event_data['DTSTART_TZID']) ? $event_data['DTSTART_TZID'] : null);
+            $dtend_original = $this->parse_datetime($event_data['DTEND'], $dtend_tzid);
+            if ($dtend_original) {
+                $duration = $dtstart->diff($dtend_original);
+            }
+        } elseif (!empty($event_data['DURATION'])) {
+            // DURATIONプロパティがある場合
+            $duration = $this->parse_duration($event_data['DURATION']);
+        }
+        
+        // DTENDを計算（durationから）
+        $dtend = null;
+        if ($duration) {
+            $dtend = clone $dtstart;
+            if ($duration->days > 0) {
+                $dtend->modify('+' . $duration->days . ' days');
+            }
+            if ($duration->h > 0) {
+                $dtend->modify('+' . $duration->h . ' hours');
+            }
+            if ($duration->i > 0) {
+                $dtend->modify('+' . $duration->i . ' minutes');
+            }
+            if ($duration->s > 0) {
+                $dtend->modify('+' . $duration->s . ' seconds');
+            }
         }
         
         // タイトル取得（予定が存在する場合はタイトルを表示する）
-        // SUMMARYフィールドを取得（継続行の改行を除去）
         $title = isset($event_data['SUMMARY']) ? $event_data['SUMMARY'] : '';
-        
-        // 空の場合、他のフィールドを確認
         if (empty($title)) {
-            // DESCRIPTIONやLOCATIONなども確認
             $title = isset($event_data['DESCRIPTION']) ? $event_data['DESCRIPTION'] : '';
             if (empty($title)) {
                 $title = isset($event_data['LOCATION']) ? $event_data['LOCATION'] : '';
@@ -2146,39 +2562,30 @@ class Schedule_ICS_Parser {
         
         // 改行を除去してからトリム
         $title = trim(str_replace(array("\r\n", "\r", "\n"), ' ', $title));
-        // 複数のスペースを1つに
         $title = preg_replace('/\s+/', ' ', $title);
-        // ICS形式のエスケープ文字を処理
-        // \n -> 改行（既に除去済みなので処理不要）
-        // \\ -> \
-        // \, -> ,
-        // \; -> ;
         $title = str_replace(array('\\\\', '\\,', '\\;'), array('\\', ',', ';'), $title);
-        // エスケープされた文字をデコード（ICS形式のエスケープ処理）
         $title = stripcslashes($title);
-        // URLエンコードされている場合のデコード
         $title = urldecode($title);
         
-        // タイトルが空の場合は「（タイトルなし）」として表示する（予定が存在する場合は表示）
         if (empty($title)) {
             $title = '（タイトルなし）';
         }
         
-        // 「Busy」という単独の値は無視（Googleカレンダーのデフォルトステータス）
+        // 「Busy」という単独の値は無視
         if (trim($title) === 'Busy' || trim($title) === 'busy' || trim($title) === 'BUSY') {
-            return null; // 「Busy」のみのイベントは表示しない
+            return null;
         }
         
         // 除外パターンチェック
         if (!empty($exclude_list)) {
             foreach ($exclude_list as $pattern) {
                 if (stripos($title, $pattern) !== false) {
-                    return null; // 除外パターンに一致する予定は表示しない
+                    return null;
                 }
             }
         }
         
-        // 日付表示用（日のみ、年月は月見出しで表示されるため）
+        // 日付表示用
         $date_display = $dtstart->format('j日');
         $weekday = $this->get_japanese_weekday($dtstart->format('w'));
         
@@ -2192,65 +2599,49 @@ class Schedule_ICS_Parser {
         
         // 説明（DESCRIPTION）を取得
         $description = isset($event_data['DESCRIPTION']) ? $event_data['DESCRIPTION'] : '';
-        // 改行を除去
         $description = trim(str_replace(array("\r\n", "\r", "\n"), ' ', $description));
-        // 複数のスペースを1つに
         $description = preg_replace('/\s+/', ' ', $description);
-        // ICS形式のエスケープ文字を処理
         $description = str_replace(array('\\\\', '\\,', '\\;'), array('\\', ',', ';'), $description);
         $description = stripcslashes($description);
         $description = urldecode($description);
         
         // 場所（LOCATION）を取得
         $location = isset($event_data['LOCATION']) ? $event_data['LOCATION'] : '';
-        // 改行を除去
         $location = trim(str_replace(array("\r\n", "\r", "\n"), ' ', $location));
-        // 複数のスペースを1つに
         $location = preg_replace('/\s+/', ' ', $location);
-        // ICS形式のエスケープ文字を処理
         $location = str_replace(array('\\\\', '\\,', '\\;'), array('\\', ',', ';'), $location);
         $location = stripcslashes($location);
         $location = urldecode($location);
         
-        // 背景色（COLOR）を取得（Googleカレンダーの背景色）
-        // 優先順位：1. イベント固有のCOLOR → 2. カレンダーの色 → 3. デフォルト色（緑）
+        // 色情報の取得（イベント固有 → カレンダー → デフォルトの順）
         $display_background_color = '';
-        
-        // 1. イベント固有のCOLORを確認
-        $event_color = isset($event_data['COLOR']) ? trim($event_data['COLOR']) : '';
-        if (empty($event_color) && isset($event_data['X-APPLE-CALENDAR-COLOR'])) {
+        $event_color = '';
+        if (isset($event_data['COLOR'])) {
+            $event_color = trim($event_data['COLOR']);
+        } elseif (isset($event_data['X-APPLE-CALENDAR-COLOR'])) {
             $event_color = trim($event_data['X-APPLE-CALENDAR-COLOR']);
-        }
-        if (empty($event_color) && isset($event_data['X-COLOR'])) {
+        } elseif (isset($event_data['X-COLOR'])) {
             $event_color = trim($event_data['X-COLOR']);
         }
         
-        // 2. イベント固有の色がない場合は、カレンダーレベルの色を使用
         if (empty($event_color) && !empty($calendar_color)) {
             $display_background_color = $calendar_color;
         } elseif (!empty($event_color)) {
             $display_background_color = $event_color;
         }
         
-        // 色コードを正規化（#が付いていない場合は追加、RGB形式の場合は変換）
+        // 色コードを正規化
         if (!empty($display_background_color)) {
-            // #が付いていない場合は追加
             if (strpos($display_background_color, '#') !== 0) {
                 $display_background_color = '#' . $display_background_color;
             }
-            // 3桁のHEXカラーを6桁に変換（例: #f00 -> #ff0000）
             if (strlen($display_background_color) === 4) {
                 $display_background_color = '#' . $display_background_color[1] . $display_background_color[1] . $display_background_color[2] . $display_background_color[2] . $display_background_color[3] . $display_background_color[3];
             }
-            // 有効なHEXカラーかチェック
             if (!preg_match('/^#[0-9A-Fa-f]{6}$/', $display_background_color)) {
-                $display_background_color = ''; // 無効な場合は空にする（デフォルト色を使用）
+                $display_background_color = '';
             }
         }
-        
-        // デフォルト色（緑 #4caf50）を使用する場合は空文字列のままにする（CSSのデフォルトを使用）
-        // カレンダーの色がある場合も、正規化チェックを通過したもののみを使用
-        // 空の場合はCSSのデフォルト色（#4caf50）を使用
         
         return array(
             'date' => $dtstart->format('Y-m-d'),
@@ -2260,9 +2651,27 @@ class Schedule_ICS_Parser {
             'title' => $title,
             'description' => $description,
             'location' => $location,
-            'displayBackgroundColor' => $display_background_color, // 背景色（前景色は常に白）
+            'displayBackgroundColor' => $display_background_color,
             'datetime' => $dtstart
         );
+    }
+    
+    /**
+     * DURATION文字列を解析する
+     */
+    private function parse_duration($duration_str) {
+        // P1D, PT2H30M などの形式
+        if (preg_match('/^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/', $duration_str, $matches)) {
+            $days = isset($matches[1]) ? (int)$matches[1] : 0;
+            $hours = isset($matches[2]) ? (int)$matches[2] : 0;
+            $minutes = isset($matches[3]) ? (int)$matches[3] : 0;
+            $seconds = isset($matches[4]) ? (int)$matches[4] : 0;
+            
+            // DateIntervalオブジェクトを作成
+            return new DateInterval("P{$days}DT{$hours}H{$minutes}M{$seconds}S");
+        }
+        
+        return null;
     }
     
     private function parse_datetime($datetime_str, $tzid = null) {
