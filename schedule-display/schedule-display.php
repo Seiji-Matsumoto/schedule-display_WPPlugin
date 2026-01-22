@@ -395,6 +395,34 @@ class Schedule_Display {
             'sanitize_callback' => 'absint'
         ));
         
+        // データ取得方式（ICS/API）
+        register_setting('schedule_display_settings', 'schedule_data_source', array(
+            'default' => 'ics',
+            'sanitize_callback' => 'sanitize_text_field'
+        ));
+        
+        // Google Calendar API設定
+        register_setting('schedule_display_settings', 'schedule_gcal_api_key', array(
+            'default' => '',
+            'sanitize_callback' => 'sanitize_text_field'
+        ));
+        register_setting('schedule_display_settings', 'schedule_gcal_calendar_id', array(
+            'default' => '',
+            'sanitize_callback' => 'sanitize_text_field'
+        ));
+        register_setting('schedule_display_settings', 'schedule_gcal_calendar_id_1', array(
+            'default' => '',
+            'sanitize_callback' => 'sanitize_text_field'
+        ));
+        register_setting('schedule_display_settings', 'schedule_gcal_calendar_id_2', array(
+            'default' => '',
+            'sanitize_callback' => 'sanitize_text_field'
+        ));
+        register_setting('schedule_display_settings', 'schedule_gcal_calendar_id_3', array(
+            'default' => '',
+            'sanitize_callback' => 'sanitize_text_field'
+        ));
+        
         register_setting('schedule_display_settings', 'schedule_theme', array(
             'default' => 'default',
             'sanitize_callback' => 'sanitize_text_field'
@@ -606,6 +634,26 @@ class Schedule_Display {
                     $('#schedule-custom-style-settings').hide();
                 }
             });
+            
+            // データ取得方式選択時の動作
+            function toggleDataSourceSettings() {
+                var dataSource = $('input[name="schedule_data_source"]:checked').val();
+                if (dataSource === 'ics') {
+                    $('#schedule-ics-settings').show();
+                    $('#schedule-api-settings').hide();
+                } else if (dataSource === 'api') {
+                    $('#schedule-ics-settings').hide();
+                    $('#schedule-api-settings').show();
+                }
+            }
+            
+            // 初期表示時の設定
+            toggleDataSourceSettings();
+            
+            // ラジオボタン変更時の動作
+            $('input[name="schedule_data_source"]').on('change', function() {
+                toggleDataSourceSettings();
+            });
         });
         </script>
         <div class="wrap">
@@ -626,6 +674,40 @@ class Schedule_Display {
             
             <form method="post" action="options.php">
                 <?php settings_fields('schedule_display_settings'); ?>
+                <table class="form-table">
+                    <tr>
+                        <th scope="row">
+                            <label for="schedule_data_source">データ取得方式</label>
+                        </th>
+                        <td>
+                            <?php $data_source = get_option('schedule_data_source', 'ics'); ?>
+                            <label>
+                                <input type="radio" 
+                                       name="schedule_data_source" 
+                                       value="ics" 
+                                       id="schedule_data_source_ics"
+                                       <?php checked($data_source, 'ics'); ?> />
+                                ICS方式
+                            </label>
+                            <label style="margin-left: 20px;">
+                                <input type="radio" 
+                                       name="schedule_data_source" 
+                                       value="api" 
+                                       id="schedule_data_source_api"
+                                       <?php checked($data_source, 'api'); ?> />
+                                Google Calendar API方式
+                            </label>
+                            <p class="description">
+                                データ取得方式を選択してください。ICS方式は既存の仕様のまま動作します。<br>
+                                Google Calendar API方式では、より詳細なイベント情報（イベント色など）を取得できます。
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+                
+                <!-- ICS方式の設定 -->
+                <div id="schedule-ics-settings" class="schedule-source-settings" style="<?php echo ($data_source === 'ics') ? '' : 'display: none;'; ?>">
+                <h2>ICS方式の設定</h2>
                 <table class="form-table">
                     <tr>
                         <th scope="row">
@@ -722,6 +804,95 @@ class Schedule_Display {
                             <p class="description">複数のカレンダーを統合表示する場合に使用します。リンク未入力の場合は無視されます。右側の入力欄に背景色を指定できます。</p>
                         </td>
                     </tr>
+                </table>
+                </div>
+                
+                <!-- Google Calendar API方式の設定 -->
+                <div id="schedule-api-settings" class="schedule-source-settings" style="<?php echo ($data_source === 'api') ? '' : 'display: none;'; ?>">
+                <h2>Google Calendar API方式の設定</h2>
+                <table class="form-table">
+                    <tr>
+                        <th scope="row">
+                            <label for="schedule_gcal_api_key">APIキー</label>
+                        </th>
+                        <td>
+                            <input type="text" 
+                                   id="schedule_gcal_api_key" 
+                                   name="schedule_gcal_api_key" 
+                                   value="<?php echo esc_attr(get_option('schedule_gcal_api_key', '')); ?>" 
+                                   class="regular-text"
+                                   placeholder="AIzaSy..." />
+                            <p class="description">
+                                Google Cloud Consoleで作成したAPIキーを入力してください。<br>
+                                <strong>注意：</strong>公開カレンダーのみが取得対象です。APIキーは適切に管理してください。
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <label for="schedule_gcal_calendar_id">カレンダーID（メイン）</label>
+                        </th>
+                        <td>
+                            <input type="text" 
+                                   id="schedule_gcal_calendar_id" 
+                                   name="schedule_gcal_calendar_id" 
+                                   value="<?php echo esc_attr(get_option('schedule_gcal_calendar_id', '')); ?>" 
+                                   class="regular-text"
+                                   placeholder="primary または example@gmail.com" />
+                            <p class="description">
+                                取得するカレンダーのIDを入力してください。<br>
+                                例：<code>primary</code>（プライマリカレンダー）、<code>example@gmail.com</code>（メールアドレス形式）、またはカスタムカレンダーID
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <label for="schedule_gcal_calendar_id_1">カレンダーID 1</label>
+                        </th>
+                        <td>
+                            <input type="text" 
+                                   id="schedule_gcal_calendar_id_1" 
+                                   name="schedule_gcal_calendar_id_1" 
+                                   value="<?php echo esc_attr(get_option('schedule_gcal_calendar_id_1', '')); ?>" 
+                                   class="regular-text"
+                                   placeholder="example1@gmail.com" />
+                            <p class="description">複数のカレンダーを統合表示する場合に使用します。未入力の場合は無視されます。</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <label for="schedule_gcal_calendar_id_2">カレンダーID 2</label>
+                        </th>
+                        <td>
+                            <input type="text" 
+                                   id="schedule_gcal_calendar_id_2" 
+                                   name="schedule_gcal_calendar_id_2" 
+                                   value="<?php echo esc_attr(get_option('schedule_gcal_calendar_id_2', '')); ?>" 
+                                   class="regular-text"
+                                   placeholder="example2@gmail.com" />
+                            <p class="description">複数のカレンダーを統合表示する場合に使用します。未入力の場合は無視されます。</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <label for="schedule_gcal_calendar_id_3">カレンダーID 3</label>
+                        </th>
+                        <td>
+                            <input type="text" 
+                                   id="schedule_gcal_calendar_id_3" 
+                                   name="schedule_gcal_calendar_id_3" 
+                                   value="<?php echo esc_attr(get_option('schedule_gcal_calendar_id_3', '')); ?>" 
+                                   class="regular-text"
+                                   placeholder="example3@gmail.com" />
+                            <p class="description">複数のカレンダーを統合表示する場合に使用します。未入力の場合は無視されます。</p>
+                        </td>
+                    </tr>
+                </table>
+                </div>
+                
+                <!-- 共通設定 -->
+                <h2>共通設定</h2>
+                <table class="form-table">
                     <tr>
                         <th scope="row">
                             <label for="schedule_days_ahead">表示日数（直近何日分）</label>
@@ -1159,34 +1330,8 @@ class Schedule_Display {
             'calendar_start_day' => $calendar_start_day
         ), $atts);
         
-        // 複数のICS URLを取得（リンク未入力は無視）
-        $ics_urls = array();
-        
-        // ショートコードで指定されたURL
-        if (!empty($atts['ics_url'])) {
-            $ics_urls[] = $atts['ics_url'];
-        }
-        
-        // 設定画面のURL（既存のschedule_ics_url）
-        $main_ics_url = get_option('schedule_ics_url', '');
-        if (!empty($main_ics_url)) {
-            $ics_urls[] = $main_ics_url;
-        }
-        
-        // 追加のICS URL（schedule_ics_url_1, 2, 3）
-        for ($i = 1; $i <= 3; $i++) {
-            $url = get_option("schedule_ics_url_{$i}", '');
-            if (!empty($url)) {
-                $ics_urls[] = $url;
-            }
-        }
-        
-        // 重複を除去
-        $ics_urls = array_unique($ics_urls);
-        
-        if (empty($ics_urls)) {
-            return '<div class="schedule-error">ICS URLが設定されていません。管理画面で設定してください。</div>';
-        }
+        // データ取得方式を取得
+        $data_source = get_option('schedule_data_source', 'ics');
         
         $days = absint($atts['days']);
         $exclude_patterns = !empty($atts['exclude_patterns']) ? $atts['exclude_patterns'] : get_option('schedule_exclude_patterns', '');
@@ -1194,40 +1339,114 @@ class Schedule_Display {
         // デバッグモードのチェック
         $debug_mode = get_option('schedule_debug_mode', 0);
         
-        // 複数のICSからイベントを取得して統合
+        // データ取得方式に応じてイベントを取得
         $all_events = array();
         $debug_info = '';
-        $debug_infos = array(); // すべてのICSのデバッグ情報を収集
-        $events_by_url = array(); // 各URLごとのイベントを記録（デバッグ用）
+        $debug_infos = array();
+        $events_by_url = array();
         
-        foreach ($ics_urls as $ics_url) {
-            $events = $this->ics_parser->get_events($ics_url, $days, $exclude_patterns, $debug_mode);
-            
-            if (is_wp_error($events)) {
-                if ($debug_mode) {
-                    $debug_infos[] = '<div class="schedule-debug">ICS URL: ' . esc_html($ics_url) . ' - エラー: ' . esc_html($events->get_error_message()) . '</div>';
-                    $events_by_url[$ics_url] = array('error' => $events->get_error_message(), 'events' => array());
-                }
-                continue; // エラーが発生したICSはスキップ
+        if ($data_source === 'api') {
+            // Google Calendar API方式
+            $api_key = get_option('schedule_gcal_api_key', '');
+            if (empty($api_key)) {
+                return '<div class="schedule-error">Google Calendar APIキーが設定されていません。管理画面で設定してください。</div>';
             }
             
-            // デバッグ情報を取得（すべてのICS）
-            if ($debug_mode && isset($events['_debug'])) {
-                $debug_infos[] = $events['_debug'];
-                unset($events['_debug']);
+            // カレンダーIDを取得
+            $calendar_ids = array();
+            $main_calendar_id = get_option('schedule_gcal_calendar_id', '');
+            if (!empty($main_calendar_id)) {
+                $calendar_ids[] = $main_calendar_id;
+            }
+            for ($i = 1; $i <= 3; $i++) {
+                $calendar_id = get_option("schedule_gcal_calendar_id_{$i}", '');
+                if (!empty($calendar_id)) {
+                    $calendar_ids[] = $calendar_id;
+                }
             }
             
-            // イベントを統合（各イベントには既にICS URL情報が含まれている）
-            if (!empty($events)) {
-                $all_events = array_merge($all_events, $events);
-                // デバッグ用：各URLごとのイベントを記録
-                if ($debug_mode) {
-                    $events_by_url[$ics_url] = $events;
+            if (empty($calendar_ids)) {
+                return '<div class="schedule-error">カレンダーIDが設定されていません。管理画面で設定してください。</div>';
+            }
+            
+            // 各カレンダーからイベントを取得
+            foreach ($calendar_ids as $calendar_id) {
+                $events = $this->get_gcal_events($calendar_id, $api_key, $days, $exclude_patterns, $debug_mode);
+                
+                if (is_wp_error($events)) {
+                    if ($debug_mode) {
+                        $debug_infos[] = '<div class="schedule-debug">カレンダーID: ' . esc_html($calendar_id) . ' - エラー: ' . esc_html($events->get_error_message()) . '</div>';
+                        $events_by_url[$calendar_id] = array('error' => $events->get_error_message(), 'events' => array());
+                    }
+                    continue;
                 }
-            } else {
-                // イベントが空の場合も記録
-                if ($debug_mode) {
-                    $events_by_url[$ics_url] = array();
+                
+                if (!empty($events)) {
+                    $all_events = array_merge($all_events, $events);
+                    if ($debug_mode) {
+                        $events_by_url[$calendar_id] = $events;
+                    }
+                } else {
+                    if ($debug_mode) {
+                        $events_by_url[$calendar_id] = array();
+                    }
+                }
+            }
+        } else {
+            // ICS方式（既存の処理）
+            $ics_urls = array();
+            
+            // ショートコードで指定されたURL
+            if (!empty($atts['ics_url'])) {
+                $ics_urls[] = $atts['ics_url'];
+            }
+            
+            // 設定画面のURL（既存のschedule_ics_url）
+            $main_ics_url = get_option('schedule_ics_url', '');
+            if (!empty($main_ics_url)) {
+                $ics_urls[] = $main_ics_url;
+            }
+            
+            // 追加のICS URL（schedule_ics_url_1, 2, 3）
+            for ($i = 1; $i <= 3; $i++) {
+                $url = get_option("schedule_ics_url_{$i}", '');
+                if (!empty($url)) {
+                    $ics_urls[] = $url;
+                }
+            }
+            
+            // 重複を除去
+            $ics_urls = array_unique($ics_urls);
+            
+            if (empty($ics_urls)) {
+                return '<div class="schedule-error">ICS URLが設定されていません。管理画面で設定してください。</div>';
+            }
+            
+            foreach ($ics_urls as $ics_url) {
+                $events = $this->ics_parser->get_events($ics_url, $days, $exclude_patterns, $debug_mode);
+                
+                if (is_wp_error($events)) {
+                    if ($debug_mode) {
+                        $debug_infos[] = '<div class="schedule-debug">ICS URL: ' . esc_html($ics_url) . ' - エラー: ' . esc_html($events->get_error_message()) . '</div>';
+                        $events_by_url[$ics_url] = array('error' => $events->get_error_message(), 'events' => array());
+                    }
+                    continue;
+                }
+                
+                if ($debug_mode && isset($events['_debug'])) {
+                    $debug_infos[] = $events['_debug'];
+                    unset($events['_debug']);
+                }
+                
+                if (!empty($events)) {
+                    $all_events = array_merge($all_events, $events);
+                    if ($debug_mode) {
+                        $events_by_url[$ics_url] = $events;
+                    }
+                } else {
+                    if ($debug_mode) {
+                        $events_by_url[$ics_url] = array();
+                    }
                 }
             }
         }
@@ -1235,52 +1454,97 @@ class Schedule_Display {
         // デバッグ情報を統合
         if ($debug_mode) {
             // テスト用：デバッグモードが有効であることを確認
-            error_log("DEBUG: Debug mode is enabled. URLs count: " . count($ics_urls) . ", Events by URL count: " . count($events_by_url));
+            $source_label = ($data_source === 'api') ? 'Calendar IDs' : 'ICS URLs';
+            error_log("DEBUG: Debug mode is enabled. Data source: {$data_source}, {$source_label} count: " . count($events_by_url));
             
-            // 設定されているすべてのICS URLの情報を先頭に追加
+            // 設定されているすべてのURL/IDの情報を先頭に追加
             $configured_urls_info = '<div class="schedule-debug" style="margin-top: 20px; padding: 15px; background: #e3f2fd; border: 1px solid #2196f3; border-radius: 8px;">';
-            $configured_urls_info .= '<h3 style="margin-top: 0; color: #1976d2;">📋 設定されているICS URL一覧</h3>';
+            if ($data_source === 'api') {
+                $configured_urls_info .= '<h3 style="margin-top: 0; color: #1976d2;">📋 設定されているカレンダーID一覧</h3>';
+            } else {
+                $configured_urls_info .= '<h3 style="margin-top: 0; color: #1976d2;">📋 設定されているICS URL一覧</h3>';
+            }
             $configured_urls_info .= '<ul style="margin: 10px 0; padding-left: 20px;">';
             
-            // Googleカレンダー ICS URL（メイン）
-            $main_ics_url = get_option('schedule_ics_url', '');
-            $configured_urls_info .= '<li><strong>Googleカレンダー ICS URL:</strong> ' . (!empty($main_ics_url) ? esc_html($main_ics_url) : '<span style="color: #999;">(未設定)</span>') . '</li>';
-            
-            // ICS URL 1, 2, 3
-            for ($i = 1; $i <= 3; $i++) {
-                $url = get_option("schedule_ics_url_{$i}", '');
-                $configured_urls_info .= '<li><strong>ICS URL ' . $i . ':</strong> ' . (!empty($url) ? esc_html($url) : '<span style="color: #999;">(未設定)</span>') . '</li>';
-            }
-            
-            $configured_urls_info .= '</ul>';
-            $configured_urls_info .= '<p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">実際に使用されたURL: ' . count($ics_urls) . '件</p>';
-            $configured_urls_info .= '</div>';
-            
-            // 各ICS URLごとのイベント一覧を追加
-            $events_list_info = '<div class="schedule-debug" style="margin-top: 20px; padding: 15px; background: #f3e5f5; border: 1px solid #9c27b0; border-radius: 8px;">';
-            $events_list_info .= '<h3 style="margin-top: 0; color: #7b1fa2;">📅 各ICS URLごとのイベント一覧</h3>';
-            
-            // Googleカレンダー ICS URL（メイン）
-            $main_ics_url = get_option('schedule_ics_url', '');
-            if (!empty($main_ics_url) && isset($events_by_url[$main_ics_url])) {
-                $events_list_info .= $this->format_events_list_for_debug('Googleカレンダー ICS URL', $main_ics_url, $events_by_url[$main_ics_url]);
-            } else {
-                $events_list_info .= $this->format_events_list_for_debug('Googleカレンダー ICS URL', $main_ics_url, array());
-            }
-            
-            // ICS URL 1, 2, 3
-            for ($i = 1; $i <= 3; $i++) {
-                $url = get_option("schedule_ics_url_{$i}", '');
-                if (!empty($url) && isset($events_by_url[$url])) {
-                    $events_list_info .= $this->format_events_list_for_debug('ICS URL ' . $i, $url, $events_by_url[$url]);
-                } elseif (!empty($url)) {
-                    $events_list_info .= $this->format_events_list_for_debug('ICS URL ' . $i, $url, array());
-                } else {
-                    $events_list_info .= $this->format_events_list_for_debug('ICS URL ' . $i, '', array());
+            if ($data_source === 'api') {
+                // API方式：カレンダーID
+                $main_calendar_id = get_option('schedule_gcal_calendar_id', '');
+                $configured_urls_info .= '<li><strong>カレンダーID（メイン）:</strong> ' . (!empty($main_calendar_id) ? esc_html($main_calendar_id) : '<span style="color: #999;">(未設定)</span>') . '</li>';
+                
+                for ($i = 1; $i <= 3; $i++) {
+                    $calendar_id = get_option("schedule_gcal_calendar_id_{$i}", '');
+                    $configured_urls_info .= '<li><strong>カレンダーID ' . $i . ':</strong> ' . (!empty($calendar_id) ? esc_html($calendar_id) : '<span style="color: #999;">(未設定)</span>') . '</li>';
                 }
+                
+                $configured_urls_info .= '</ul>';
+                $configured_urls_info .= '<p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">実際に使用されたカレンダーID: ' . count($events_by_url) . '件</p>';
+                $configured_urls_info .= '</div>';
+                
+                // 各カレンダーIDごとのイベント一覧を追加
+                $events_list_info = '<div class="schedule-debug" style="margin-top: 20px; padding: 15px; background: #f3e5f5; border: 1px solid #9c27b0; border-radius: 8px;">';
+                $events_list_info .= '<h3 style="margin-top: 0; color: #7b1fa2;">📅 各カレンダーIDごとのイベント一覧</h3>';
+                
+                $main_calendar_id = get_option('schedule_gcal_calendar_id', '');
+                if (!empty($main_calendar_id) && isset($events_by_url[$main_calendar_id])) {
+                    $events_list_info .= $this->format_events_list_for_debug('カレンダーID（メイン）', $main_calendar_id, $events_by_url[$main_calendar_id]);
+                } else {
+                    $events_list_info .= $this->format_events_list_for_debug('カレンダーID（メイン）', $main_calendar_id, array());
+                }
+                
+                for ($i = 1; $i <= 3; $i++) {
+                    $calendar_id = get_option("schedule_gcal_calendar_id_{$i}", '');
+                    if (!empty($calendar_id) && isset($events_by_url[$calendar_id])) {
+                        $events_list_info .= $this->format_events_list_for_debug('カレンダーID ' . $i, $calendar_id, $events_by_url[$calendar_id]);
+                    } elseif (!empty($calendar_id)) {
+                        $events_list_info .= $this->format_events_list_for_debug('カレンダーID ' . $i, $calendar_id, array());
+                    } else {
+                        $events_list_info .= $this->format_events_list_for_debug('カレンダーID ' . $i, '', array());
+                    }
+                }
+                
+                $events_list_info .= '</div>';
+            } else {
+                // ICS方式：既存の処理
+                // Googleカレンダー ICS URL（メイン）
+                $main_ics_url = get_option('schedule_ics_url', '');
+                $configured_urls_info .= '<li><strong>Googleカレンダー ICS URL:</strong> ' . (!empty($main_ics_url) ? esc_html($main_ics_url) : '<span style="color: #999;">(未設定)</span>') . '</li>';
+                
+                // ICS URL 1, 2, 3
+                for ($i = 1; $i <= 3; $i++) {
+                    $url = get_option("schedule_ics_url_{$i}", '');
+                    $configured_urls_info .= '<li><strong>ICS URL ' . $i . ':</strong> ' . (!empty($url) ? esc_html($url) : '<span style="color: #999;">(未設定)</span>') . '</li>';
+                }
+                
+                $configured_urls_info .= '</ul>';
+                $configured_urls_info .= '<p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">実際に使用されたURL: ' . count($events_by_url) . '件</p>';
+                $configured_urls_info .= '</div>';
+                
+                // 各ICS URLごとのイベント一覧を追加
+                $events_list_info = '<div class="schedule-debug" style="margin-top: 20px; padding: 15px; background: #f3e5f5; border: 1px solid #9c27b0; border-radius: 8px;">';
+                $events_list_info .= '<h3 style="margin-top: 0; color: #7b1fa2;">📅 各ICS URLごとのイベント一覧</h3>';
+                
+                // Googleカレンダー ICS URL（メイン）
+                $main_ics_url = get_option('schedule_ics_url', '');
+                if (!empty($main_ics_url) && isset($events_by_url[$main_ics_url])) {
+                    $events_list_info .= $this->format_events_list_for_debug('Googleカレンダー ICS URL', $main_ics_url, $events_by_url[$main_ics_url]);
+                } else {
+                    $events_list_info .= $this->format_events_list_for_debug('Googleカレンダー ICS URL', $main_ics_url, array());
+                }
+                
+                // ICS URL 1, 2, 3
+                for ($i = 1; $i <= 3; $i++) {
+                    $url = get_option("schedule_ics_url_{$i}", '');
+                    if (!empty($url) && isset($events_by_url[$url])) {
+                        $events_list_info .= $this->format_events_list_for_debug('ICS URL ' . $i, $url, $events_by_url[$url]);
+                    } elseif (!empty($url)) {
+                        $events_list_info .= $this->format_events_list_for_debug('ICS URL ' . $i, $url, array());
+                    } else {
+                        $events_list_info .= $this->format_events_list_for_debug('ICS URL ' . $i, '', array());
+                    }
+                }
+                
+                $events_list_info .= '</div>';
             }
-            
-            $events_list_info .= '</div>';
             
             // 各ICSのデバッグ情報と結合
             if (!empty($debug_infos)) {
@@ -1413,7 +1677,15 @@ class Schedule_Display {
                     <div class="schedule-list"<?php echo ($hide_month_heading && !$first_month) ? ' style="margin-top: 12px;"' : ''; ?>>
                         <?php foreach ($month_events as $event) : ?>
                             <?php
-                            // 背景色を取得（displayBackgroundColorプロパティから）
+                            // イベント色を取得（API方式の場合はeventColorHex、ICS方式の場合はdisplayBackgroundColor）
+                            $event_color_hex = '#4caf50'; // デフォルト色（緑）
+                            if (isset($event['eventColorHex'])) {
+                                $event_color_hex = $event['eventColorHex'];
+                            } elseif (isset($event['displayBackgroundColor']) && !empty($event['displayBackgroundColor'])) {
+                                $event_color_hex = $event['displayBackgroundColor'];
+                            }
+                            
+                            // 背景色を取得（ICS方式用、既存仕様を維持）
                             $display_bg_color = isset($event['displayBackgroundColor']) ? $event['displayBackgroundColor'] : '';
                             $title_style = '';
                             // 前景色は常に白に固定
@@ -1424,6 +1696,9 @@ class Schedule_Display {
                             }
                             // パディングとボーダーラディウスを追加
                             $title_style .= ' padding: 2px 6px; border-radius: 3px; display: inline-block;';
+                            
+                            // タイトルに「●」を追加（色を適用）
+                            $title_with_dot = '<span style="color: ' . esc_attr($event_color_hex) . ';">●</span> ' . esc_html($event['title']);
                             ?>
                             <div class="schedule-item" 
                                  data-event-index="<?php echo esc_attr($event_index); ?>"
@@ -1441,7 +1716,7 @@ class Schedule_Display {
                                 <?php if (!empty($event['time'])) : ?>
                                     <div class="schedule-time"><?php echo esc_html($event['time']); ?></div>
                                 <?php endif; ?>
-                                <div class="schedule-title"<?php echo !empty($title_style) ? ' style="' . $title_style . '"' : ''; ?>><?php echo esc_html($event['title']); ?></div>
+                                <div class="schedule-title"<?php echo !empty($title_style) ? ' style="' . $title_style . '"' : ''; ?>><?php echo $title_with_dot; ?></div>
                             </div>
                         <?php 
                         $event_index++;
@@ -1689,18 +1964,40 @@ class Schedule_Display {
                                             $event_title = '（タイトルなし）';
                                         }
                                         
-                                        // 2つ目まで表示、3つ目以降は吹き出し用に保存
-                                        if ($event_display_count >= 2) {
-                                            // 3つ目以降のイベントを配列に保存
-                                            $hidden_events[] = array(
-                                                'title' => $event_title,
-                                                'date' => $calendar_date_display,
-                                                'weekday' => $calendar_weekday,
-                                                'time' => isset($event['time']) ? $event['time'] : '',
-                                                'location' => isset($event['location']) ? $event['location'] : '',
-                                                'description' => isset($event['description']) ? $event['description'] : ''
-                                            );
-                                            continue;
+                                        // 4件以上の場合、3行目を「+N件」として纏める
+                                        // 1-2件：そのまま表示
+                                        // 3件：3行目まで表示
+                                        // 4件以上：1-2行目に表示、3行目に「+N件」
+                                        $total_events = count($day_events);
+                                        
+                                        if ($total_events >= 4) {
+                                            // 4件以上の場合
+                                            if ($event_display_count >= 2) {
+                                                // 3つ目以降のイベントを配列に保存（3行目に「+N件」として表示）
+                                                $hidden_events[] = array(
+                                                    'title' => $event_title,
+                                                    'date' => $calendar_date_display,
+                                                    'weekday' => $calendar_weekday,
+                                                    'time' => isset($event['time']) ? $event['time'] : '',
+                                                    'location' => isset($event['location']) ? $event['location'] : '',
+                                                    'description' => isset($event['description']) ? $event['description'] : ''
+                                                );
+                                                continue;
+                                            }
+                                        } else {
+                                            // 3件以下の場合、3行目まで表示
+                                            if ($event_display_count >= 3) {
+                                                // 4つ目以降（通常は発生しないが、念のため）
+                                                $hidden_events[] = array(
+                                                    'title' => $event_title,
+                                                    'date' => $calendar_date_display,
+                                                    'weekday' => $calendar_weekday,
+                                                    'time' => isset($event['time']) ? $event['time'] : '',
+                                                    'location' => isset($event['location']) ? $event['location'] : '',
+                                                    'description' => isset($event['description']) ? $event['description'] : ''
+                                                );
+                                                continue;
+                                            }
                                         }
                                         
                                         $event_display_count++;
@@ -1713,55 +2010,126 @@ class Schedule_Display {
                                             $tooltip_text = $start_time . '~ ' . $event_title;
                                         }
                                         
-                                        // 背景色を取得（ICS URLの設定色を優先、次にICSのCOLOR情報）
-                                        $display_bg_color = '';
+                                        // イベント色を取得（API方式の場合はeventColorHex、ICS方式の場合は既存の処理）
+                                        $event_color_hex = '#4caf50'; // デフォルト色（緑）
                                         
-                                        // まず、ICS URLに対応する背景色設定を取得
-                                        if (isset($event['ics_url'])) {
-                                            $ics_url = $event['ics_url'];
-                                            // どのICS URL設定に対応するか判定
-                                            $main_ics_url = get_option('schedule_ics_url', '');
-                                            if ($ics_url === $main_ics_url) {
-                                                $display_bg_color = get_option('schedule_ics_url_color', '');
-                                            } else {
-                                                for ($i = 1; $i <= 3; $i++) {
-                                                    $url = get_option("schedule_ics_url_{$i}", '');
-                                                    if ($ics_url === $url) {
-                                                        $display_bg_color = get_option("schedule_ics_url_{$i}_color", '');
-                                                        break;
+                                        if (isset($event['eventColorHex'])) {
+                                            // API方式：eventColorHexを直接使用
+                                            $event_color_hex = $event['eventColorHex'];
+                                        } else {
+                                            // ICS方式：既存の処理（ICS URLの設定色を優先、次にICSのCOLOR情報）
+                                            $display_bg_color = '';
+                                            
+                                            // まず、ICS URLに対応する背景色設定を取得
+                                            if (isset($event['ics_url'])) {
+                                                $ics_url = $event['ics_url'];
+                                                // どのICS URL設定に対応するか判定
+                                                $main_ics_url = get_option('schedule_ics_url', '');
+                                                if ($ics_url === $main_ics_url) {
+                                                    $display_bg_color = get_option('schedule_ics_url_color', '');
+                                                } else {
+                                                    for ($i = 1; $i <= 3; $i++) {
+                                                        $url = get_option("schedule_ics_url_{$i}", '');
+                                                        if ($ics_url === $url) {
+                                                            $display_bg_color = get_option("schedule_ics_url_{$i}_color", '');
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            
+                                            // ICS URLの設定色がない場合は、ICSのCOLOR情報を使用
+                                            if (empty($display_bg_color) && isset($event['displayBackgroundColor'])) {
+                                                $display_bg_color = $event['displayBackgroundColor'];
+                                            }
+                                            
+                                            // それでも色がない場合はデフォルト色（緑）を使用
+                                            if (empty($display_bg_color)) {
+                                                $display_bg_color = '#4caf50';
+                                            }
+                                            
+                                            // 色コードを正規化（#が付いていない場合は追加）
+                                            if (strpos($display_bg_color, '#') !== 0) {
+                                                $display_bg_color = '#' . $display_bg_color;
+                                            }
+                                            // 3桁のHEXカラーを6桁に変換
+                                            if (strlen($display_bg_color) === 4) {
+                                                $display_bg_color = '#' . $display_bg_color[1] . $display_bg_color[1] . $display_bg_color[2] . $display_bg_color[2] . $display_bg_color[3] . $display_bg_color[3];
+                                            }
+                                            // 有効なHEXカラーかチェック
+                                            if (!preg_match('/^#[0-9A-Fa-f]{6}$/', $display_bg_color)) {
+                                                $display_bg_color = '#4caf50'; // 無効な場合はデフォルト色
+                                            }
+                                            
+                                            $event_color_hex = $display_bg_color;
+                                        }
+                                        
+                                        // 背景色を取得（ICS方式用、既存仕様を維持）
+                                        $display_bg_color = '';
+                                        if (isset($event['displayBackgroundColor']) && !isset($event['eventColorHex'])) {
+                                            // ICS方式の場合のみ背景色を使用
+                                            $display_bg_color = $event['displayBackgroundColor'];
+                                            // ICS URLの設定色を優先
+                                            if (isset($event['ics_url'])) {
+                                                $ics_url = $event['ics_url'];
+                                                $main_ics_url = get_option('schedule_ics_url', '');
+                                                if ($ics_url === $main_ics_url) {
+                                                    $url_color = get_option('schedule_ics_url_color', '');
+                                                    if (!empty($url_color)) {
+                                                        $display_bg_color = $url_color;
+                                                    }
+                                                } else {
+                                                    for ($i = 1; $i <= 3; $i++) {
+                                                        $url = get_option("schedule_ics_url_{$i}", '');
+                                                        if ($ics_url === $url) {
+                                                            $url_color = get_option("schedule_ics_url_{$i}_color", '');
+                                                            if (!empty($url_color)) {
+                                                                $display_bg_color = $url_color;
+                                                                break;
+                                                            }
+                                                        }
                                                     }
                                                 }
                                             }
                                         }
                                         
-                                        // ICS URLの設定色がない場合は、ICSのCOLOR情報を使用
-                                        if (empty($display_bg_color) && isset($event['displayBackgroundColor'])) {
-                                            $display_bg_color = $event['displayBackgroundColor'];
+                                        // 色コードを正規化
+                                        if (!empty($display_bg_color)) {
+                                            if (strpos($display_bg_color, '#') !== 0) {
+                                                $display_bg_color = '#' . $display_bg_color;
+                                            }
+                                            if (strlen($display_bg_color) === 4) {
+                                                $display_bg_color = '#' . $display_bg_color[1] . $display_bg_color[1] . $display_bg_color[2] . $display_bg_color[2] . $display_bg_color[3] . $display_bg_color[3];
+                                            }
+                                            if (!preg_match('/^#[0-9A-Fa-f]{6}$/', $display_bg_color)) {
+                                                $display_bg_color = '#4caf50';
+                                            }
                                         }
                                         
-                                        // それでも色がない場合はデフォルト色（緑）を使用
-                                        if (empty($display_bg_color)) {
-                                            $display_bg_color = '#4caf50';
+                                        // eventColorHexも正規化
+                                        if (strpos($event_color_hex, '#') !== 0) {
+                                            $event_color_hex = '#' . $event_color_hex;
                                         }
-                                        
-                                        // 色コードを正規化（#が付いていない場合は追加）
-                                        if (strpos($display_bg_color, '#') !== 0) {
-                                            $display_bg_color = '#' . $display_bg_color;
+                                        if (strlen($event_color_hex) === 4) {
+                                            $event_color_hex = '#' . $event_color_hex[1] . $event_color_hex[1] . $event_color_hex[2] . $event_color_hex[2] . $event_color_hex[3] . $event_color_hex[3];
                                         }
-                                        // 3桁のHEXカラーを6桁に変換
-                                        if (strlen($display_bg_color) === 4) {
-                                            $display_bg_color = '#' . $display_bg_color[1] . $display_bg_color[1] . $display_bg_color[2] . $display_bg_color[2] . $display_bg_color[3] . $display_bg_color[3];
-                                        }
-                                        // 有効なHEXカラーかチェック
-                                        if (!preg_match('/^#[0-9A-Fa-f]{6}$/', $display_bg_color)) {
-                                            $display_bg_color = '#4caf50'; // 無効な場合はデフォルト色
+                                        if (!preg_match('/^#[0-9A-Fa-f]{6}$/', $event_color_hex)) {
+                                            $event_color_hex = '#4caf50';
                                         }
                                         
                                         $style_attr = 'cursor: pointer;';
                                         // 前景色は常に白に固定
                                         $style_attr .= ' color: #ffffff;';
-                                        // 背景色を設定
-                                        $style_attr .= ' background-color: ' . esc_attr($display_bg_color) . ';';
+                                        // 背景色を設定（ICS方式の場合のみ）
+                                        if (!empty($display_bg_color)) {
+                                            $style_attr .= ' background-color: ' . esc_attr($display_bg_color) . ';';
+                                        }
+                                        
+                                        // タイトルに「●」を追加（色を適用）
+                                        $title_display = '<span style="color: ' . esc_attr($event_color_hex) . ';">●</span> ' . esc_html(mb_substr($event_title, 0, 10));
+                                        if (mb_strlen($event_title) > 10) {
+                                            $title_display .= '...';
+                                        }
                                         ?>
                                         <div class="schedule-calendar-event" 
                                              data-event-index="<?php echo esc_attr($event_display_count - 1); ?>"
@@ -1773,7 +2141,7 @@ class Schedule_Display {
                                              data-event-description="<?php echo esc_attr(isset($event['description']) ? $event['description'] : ''); ?>"
                                              style="<?php echo $style_attr; ?>"
                                              title="<?php echo esc_attr($tooltip_text); ?>">
-                                            <?php echo esc_html(mb_substr($event_title, 0, 10)); ?><?php echo mb_strlen($event_title) > 10 ? '...' : ''; ?>
+                                            <?php echo $title_display; ?>
                                         </div>
                                     <?php endforeach; ?>
                                     <?php if (count($hidden_events) > 0) : ?>
@@ -2896,6 +3264,241 @@ class Schedule_ICS_Parser {
     private function get_japanese_weekday($w) {
         $weekdays = array('日', '月', '火', '水', '木', '金', '土');
         return '(' . $weekdays[$w] . ')';
+    }
+    
+    /**
+     * Google Calendar APIからイベントを取得
+     */
+    private function get_gcal_events($calendar_id, $api_key, $days_ahead = 60, $exclude_patterns = '', $debug_mode = false) {
+        if (empty($api_key) || empty($calendar_id)) {
+            return new WP_Error('missing_params', 'APIキーまたはカレンダーIDが設定されていません');
+        }
+        
+        // キャッシュチェック（デバッグモードの場合はキャッシュを無視）
+        $cache_key = 'schedule_gcal_events_' . md5($calendar_id . $api_key . $days_ahead . $exclude_patterns);
+        if (!$debug_mode) {
+            $cached = get_transient($cache_key);
+            if (false !== $cached) {
+                return $cached;
+            }
+        }
+        
+        // カラーパレットを取得
+        $colors = $this->get_gcal_colors($api_key, $debug_mode);
+        if (is_wp_error($colors)) {
+            if ($debug_mode) {
+                error_log('Google Calendar API: colors.get failed - ' . $colors->get_error_message());
+            }
+            // カラー取得に失敗してもイベント取得は続行（デフォルト色を使用）
+            $colors = array();
+        }
+        
+        // 日付範囲を計算
+        $time_min = date('c'); // 現在時刻（ISO 8601形式）
+        $time_max = date('c', strtotime("+{$days_ahead} days")); // days_ahead日後
+        
+        // events.list APIを呼び出し
+        $url = 'https://www.googleapis.com/calendar/v3/calendars/' . urlencode($calendar_id) . '/events';
+        $url .= '?key=' . urlencode($api_key);
+        $url .= '&timeMin=' . urlencode($time_min);
+        $url .= '&timeMax=' . urlencode($time_max);
+        $url .= '&singleEvents=true'; // 繰り返しイベントを展開
+        $url .= '&orderBy=startTime';
+        $url .= '&maxResults=2500'; // 最大取得件数
+        
+        $response = wp_remote_get($url, array(
+            'timeout' => 30,
+            'sslverify' => true
+        ));
+        
+        if (is_wp_error($response)) {
+            if ($debug_mode) {
+                error_log('Google Calendar API: events.list failed - ' . $response->get_error_message());
+            }
+            return $response;
+        }
+        
+        $body = wp_remote_retrieve_body($response);
+        $data = json_decode($body, true);
+        
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            $error_msg = 'JSON解析エラー: ' . json_last_error_msg();
+            if ($debug_mode) {
+                error_log('Google Calendar API: ' . $error_msg);
+            }
+            return new WP_Error('json_error', $error_msg);
+        }
+        
+        // エラーチェック
+        if (isset($data['error'])) {
+            $error_msg = isset($data['error']['message']) ? $data['error']['message'] : 'APIエラーが発生しました';
+            if ($debug_mode) {
+                error_log('Google Calendar API: ' . $error_msg);
+            }
+            return new WP_Error('api_error', $error_msg);
+        }
+        
+        // イベントを変換
+        $events = array();
+        if (isset($data['items']) && is_array($data['items'])) {
+            foreach ($data['items'] as $item) {
+                // タイトルがないイベントはスキップ
+                if (empty($item['summary'])) {
+                    continue;
+                }
+                
+                // 除外パターンチェック
+                if (!empty($exclude_patterns)) {
+                    $patterns = array_map('trim', explode(',', $exclude_patterns));
+                    foreach ($patterns as $pattern) {
+                        if (stripos($item['summary'], $pattern) !== false) {
+                            continue 2; // このイベントをスキップ
+                        }
+                    }
+                }
+                
+                $event = $this->convert_gcal_event_to_schedule_format($item, $colors, $calendar_id);
+                if ($event !== null) {
+                    $events[] = $event;
+                }
+            }
+        }
+        
+        // キャッシュに保存（1時間 = 3600秒）
+        if (!$debug_mode) {
+            set_transient($cache_key, $events, 3600);
+        }
+        
+        return $events;
+    }
+    
+    /**
+     * Google Calendar APIからカラーパレットを取得
+     */
+    private function get_gcal_colors($api_key, $debug_mode = false) {
+        $cache_key = 'schedule_gcal_colors_' . md5($api_key);
+        if (!$debug_mode) {
+            $cached = get_transient($cache_key);
+            if (false !== $cached) {
+                return $cached;
+            }
+        }
+        
+        $url = 'https://www.googleapis.com/calendar/v3/colors';
+        $url .= '?key=' . urlencode($api_key);
+        
+        $response = wp_remote_get($url, array(
+            'timeout' => 30,
+            'sslverify' => true
+        ));
+        
+        if (is_wp_error($response)) {
+            return $response;
+        }
+        
+        $body = wp_remote_retrieve_body($response);
+        $data = json_decode($body, true);
+        
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return new WP_Error('json_error', 'JSON解析エラー: ' . json_last_error_msg());
+        }
+        
+        // エラーチェック
+        if (isset($data['error'])) {
+            $error_msg = isset($data['error']['message']) ? $data['error']['message'] : 'APIエラーが発生しました';
+            return new WP_Error('api_error', $error_msg);
+        }
+        
+        $colors = isset($data['event']) ? $data['event'] : array();
+        
+        // キャッシュに保存（24時間）
+        if (!$debug_mode) {
+            set_transient($cache_key, $colors, 86400);
+        }
+        
+        return $colors;
+    }
+    
+    /**
+     * Google Calendar APIのイベントデータをスケジュール表示用フォーマットに変換
+     */
+    private function convert_gcal_event_to_schedule_format($gcal_event, $colors, $calendar_id) {
+        // タイトル
+        $title = isset($gcal_event['summary']) ? trim($gcal_event['summary']) : '';
+        if (empty($title)) {
+            return null;
+        }
+        
+        // 日時情報
+        $dtstart = null;
+        $dtend = null;
+        $is_all_day = false;
+        
+        if (isset($gcal_event['start']['dateTime'])) {
+            // 時刻指定イベント
+            $dtstart = new DateTime($gcal_event['start']['dateTime']);
+            if (isset($gcal_event['end']['dateTime'])) {
+                $dtend = new DateTime($gcal_event['end']['dateTime']);
+            }
+        } elseif (isset($gcal_event['start']['date'])) {
+            // 終日イベント
+            $dtstart = new DateTime($gcal_event['start']['date']);
+            if (isset($gcal_event['end']['date'])) {
+                $dtend = new DateTime($gcal_event['end']['date']);
+                // 終日イベントのendは翌日の00:00なので、1日引く
+                $dtend->modify('-1 day');
+            }
+            $is_all_day = true;
+        } else {
+            return null; // 日時情報がない場合はスキップ
+        }
+        
+        // タイムゾーンをJSTに変換
+        $dtstart->setTimezone(new DateTimeZone('Asia/Tokyo'));
+        if ($dtend) {
+            $dtend->setTimezone(new DateTimeZone('Asia/Tokyo'));
+        }
+        
+        // 日付表示
+        $date_display = $dtstart->format('Y年n月j日');
+        $weekday = $this->get_japanese_weekday($dtstart->format('w'));
+        
+        // 時間表示
+        $time = '';
+        if (!$is_all_day && $dtend) {
+            $start_time = $dtstart->format('H:i');
+            $end_time = $dtend->format('H:i');
+            $time = $start_time . ' - ' . $end_time;
+        }
+        
+        // 説明
+        $description = isset($gcal_event['description']) ? trim($gcal_event['description']) : '';
+        
+        // 場所
+        $location = isset($gcal_event['location']) ? trim($gcal_event['location']) : '';
+        
+        // イベント色を取得
+        $event_color_hex = '#4caf50'; // デフォルト色（緑）
+        if (isset($gcal_event['colorId']) && !empty($gcal_event['colorId'])) {
+            $color_id = $gcal_event['colorId'];
+            if (isset($colors[$color_id]) && isset($colors[$color_id]['background'])) {
+                $event_color_hex = $colors[$color_id]['background'];
+            }
+        }
+        
+        // 結果を返す
+        return array(
+            'date' => $dtstart->format('Y-m-d'),
+            'date_display' => $date_display,
+            'weekday' => $weekday,
+            'time' => $time,
+            'title' => $title,
+            'description' => $description,
+            'location' => $location,
+            'eventColorHex' => $event_color_hex, // イベント色（HEX形式）
+            'datetime' => $dtstart,
+            'calendar_id' => $calendar_id // カレンダーIDを保持（デバッグ用）
+        );
     }
 }
 
