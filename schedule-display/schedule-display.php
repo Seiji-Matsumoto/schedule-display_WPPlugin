@@ -1677,6 +1677,12 @@ class Schedule_Display {
                     <div class="schedule-list"<?php echo ($hide_month_heading && !$first_month) ? ' style="margin-top: 12px;"' : ''; ?>>
                         <?php foreach ($month_events as $event) : ?>
                             <?php
+                            // タイトルを取得（空の場合は「（タイトルなし）」として表示）
+                            $event_title = isset($event['title']) ? trim($event['title']) : '';
+                            if (empty($event_title)) {
+                                $event_title = '（タイトルなし）';
+                            }
+                            
                             // イベント色を取得（API方式の場合はeventColorHex、ICS方式の場合はdisplayBackgroundColor）
                             $event_color_hex = '#4caf50'; // デフォルト色（緑）
                             if (isset($event['eventColorHex'])) {
@@ -1688,24 +1694,27 @@ class Schedule_Display {
                             // 背景色を取得（ICS方式用、既存仕様を維持）
                             $display_bg_color = isset($event['displayBackgroundColor']) ? $event['displayBackgroundColor'] : '';
                             $title_style = '';
-                            // 前景色は常に白に固定
-                            $title_style = 'color: #ffffff;';
                             // 背景色を設定（空の場合はCSSのデフォルト色を使用）
                             if (!empty($display_bg_color)) {
                                 $title_style .= ' background-color: ' . esc_attr($display_bg_color) . ';';
+                                // 背景色がある場合のみ前景色を白に固定
+                                $title_style .= ' color: #ffffff;';
                             }
                             // パディングとボーダーラディウスを追加
-                            $title_style .= ' padding: 2px 6px; border-radius: 3px; display: inline-block;';
+                            if (!empty($display_bg_color)) {
+                                $title_style .= ' padding: 2px 6px; border-radius: 3px; display: inline-block;';
+                            }
                             
-                            // タイトルに「●」を追加（色を適用）
-                            $title_with_dot = '<span style="color: ' . esc_attr($event_color_hex) . ';">●</span> ' . esc_html($event['title']);
+                            // タイトル文字の色は背景色がある場合は白、ない場合はデフォルト（黒）
+                            $title_text_color = !empty($display_bg_color) ? '#ffffff' : 'inherit';
+                            $title_display = '<span style="color: ' . esc_attr($title_text_color) . ';">' . esc_html($event_title) . '</span>';
                             ?>
                             <div class="schedule-item" 
                                  data-event-index="<?php echo esc_attr($event_index); ?>"
                                  data-event-date="<?php echo esc_attr($event['date_display']); ?>"
                                  data-event-weekday="<?php echo esc_attr($event['weekday']); ?>"
                                  data-event-time="<?php echo esc_attr($event['time'] ?? ''); ?>"
-                                 data-event-title="<?php echo esc_attr($event['title']); ?>"
+                                 data-event-title="<?php echo esc_attr($event_title); ?>"
                                  data-event-location="<?php echo esc_attr($event['location'] ?? ''); ?>"
                                  data-event-description="<?php echo esc_attr($event['description'] ?? ''); ?>"
                                  style="cursor: pointer;">
@@ -1716,7 +1725,7 @@ class Schedule_Display {
                                 <?php if (!empty($event['time'])) : ?>
                                     <div class="schedule-time"><?php echo esc_html($event['time']); ?></div>
                                 <?php endif; ?>
-                                <div class="schedule-title"<?php echo !empty($title_style) ? ' style="' . $title_style . '"' : ''; ?>><?php echo $title_with_dot; ?></div>
+                                <div class="schedule-title"<?php echo !empty($title_style) ? ' style="' . $title_style . '"' : ''; ?>><?php echo $title_display; ?></div>
                             </div>
                         <?php 
                         $event_index++;
@@ -2125,8 +2134,8 @@ class Schedule_Display {
                                             $style_attr .= ' background-color: ' . esc_attr($display_bg_color) . ';';
                                         }
                                         
-                                        // タイトルに「●」を追加（色を適用）
-                                        $title_display = '<span style="color: ' . esc_attr($event_color_hex) . ';">●</span> ' . esc_html(mb_substr($event_title, 0, 10));
+                                        // タイトルを表示
+                                        $title_display = esc_html(mb_substr($event_title, 0, 10));
                                         if (mb_strlen($event_title) > 10) {
                                             $title_display .= '...';
                                         }
